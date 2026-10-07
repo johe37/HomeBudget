@@ -27,7 +27,10 @@ def ensure_site():
 
     Site.objects.update_or_create(
         id=1,
-        defaults={"domain": "localhost:8000", "name": "Hushållskalkyl"},
+        defaults={
+            "domain": os.environ.get("DJANGO_SITE_DOMAIN", "localhost:8000"),
+            "name": "Hushållskalkyl",
+        },
     )
 
 

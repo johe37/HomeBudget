@@ -20,6 +20,22 @@ Open http://localhost:8000/ and create an account. Each budget has its own name,
 
 Money is rounded to öre. A person is whatever you write on a row. The mortgage is not assigned to anyone.
 
+## Docker
+
+The image listens on port 8000 and keeps the sqlite database in `/data`.
+
+```bash
+docker build -t johe37/homebudget .
+docker run --rm -p 8000:8000 \
+  -e DJANGO_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')" \
+  -v homebudget-data:/data \
+  johe37/homebudget
+```
+
+GitHub Actions builds `linux/amd64` and `linux/arm64` on every push and pull request. Pushing a git tag publishes `johe37/homebudget:<tag>` and `:latest` to Docker Hub. Add a `DOCKERHUB_TOKEN` repository secret (a Docker Hub access token for `johe37`).
+
+Behind a reverse proxy, set `DJANGO_BEHIND_PROXY=1`, `DJANGO_ACCOUNT_PROTOCOL=https`, `DJANGO_SITE_DOMAIN` to the public host, and `DJANGO_CSRF_TRUSTED_ORIGINS` to the public origin, for example `https://budget.example.com`. OAuth keys are the same variables as in `.env.example`.
+
 ## Social login
 
 Copy `.env.example` to `.env`, fill one or more providers, export the variables, then run `migrate` again.
