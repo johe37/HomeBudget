@@ -88,7 +88,19 @@ a:hover { color: #144a30; }
 
 .page-head { justify-content: space-between; align-items: flex-end; margin-bottom: 1rem; }
 .head-actions { justify-content: flex-end; }
-.copy-form { margin: 0; }
+.copy-form, .import-form { margin: 0; }
+.import-form label.button { position: relative; }
+.import-form input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 .eyebrow {
   margin: 0;

@@ -8,9 +8,17 @@
   <div>
     <p class="eyebrow">Månadsbudgetar</p>
     <h1>Månadsbudgetar</h1>
-    <p class="lede">Varje namn är en egen budget. Gör flera och jämför dem i listan.</p>
+    <p class="lede">Varje namn är en egen budget. Gör flera och jämför dem i listan. Exportera och importera dem som csv.</p>
   </div>
   <div class="head-actions">
+    <a class="button secondary" href="{% url 'plan_export' %}">Exportera</a>
+    <form class="import-form" method="post" action="{% url 'plan_import' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <label class="button secondary">
+        Importera
+        <input type="file" name="fil" accept=".csv,text/csv" aria-label="Importera csv">
+      </label>
+    </form>
     <a class="button secondary" href="{% url 'plan_create' %}">Ny månadsbudget</a>
   </div>
 </div>

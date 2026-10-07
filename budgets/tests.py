@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
@@ -297,3 +298,103 @@ class AccountAndPlanFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Rätta fälten")
         self.assertEqual(Income.objects.get(plan=plan, person="Person 1").net, Decimal("10000.00"))
+
+
+class CsvTransferTests(TestCase):
+    def test_export_and_import_round_trip(self):
+        owner = User.objects.create_user("owner", password="test-pass-123")
+        other = User.objects.create_user("other", password="test-pass-123")
+        plan = sample_plan(owner)
+        plan.note = "En anteckning"
+        plan.save()
+        plan.incomes.filter(person="Person 2").update(active=False)
+        Expense.objects.create(
+            plan=plan,
+            name="=formel",
+            category="Övrigt",
+            person="",
+            amount=Decimal("15.50"),
+            note="Åäö",
+            source=MANUAL,
+            sort_order=103,
+        )
+        Plan.objects.create(user=other, name="Annan budget")
+
+        self.client.force_login(owner)
+        exported = self.client.get(reverse("plan_export"))
+        self.assertEqual(exported.status_code, 200)
+        self.assertIn("text/csv", exported["Content-Type"])
+        text = exported.content.decode("utf-8-sig")
+        self.assertIn("budget;rad;anteckning", text)
+        self.assertIn("Provbudget;budget;En anteckning;120000;3;2", text)
+        self.assertIn("Provbudget;inkomst;;;;;Lön;Person 1;;;10000;;;;1", text)
+        self.assertNotIn("Bolån, ränta", text)
+        self.assertNotIn("Annan budget", text)
+        self.assertIn("'=formel", text)
+        self.assertIn("15,5", text)
+
+        one = self.client.get(reverse("plan_export_one", args=[plan.pk]))
+        self.assertEqual(one.content, exported.content)
+        hidden = self.client.get(reverse("plan_export_one", args=[Plan.objects.get(user=other).pk]))
+        self.assertEqual(hidden.status_code, 404)
+
+        blocked = self.client.post(
+            reverse("plan_import"),
+            {"fil": SimpleUploadedFile("b.csv", exported.content, content_type="text/csv")},
+            follow=True,
+        )
+        self.assertContains(blocked, "Det namnet finns redan: Provbudget.")
+        self.assertEqual(Plan.objects.filter(user=owner).count(), 1)
+
+        fresh = User.objects.create_user("fresh", password="test-pass-123")
+        self.client.force_login(fresh)
+        imported = self.client.post(
+            reverse("plan_import"),
+            {"fil": SimpleUploadedFile("b.csv", exported.content, content_type="text/csv")},
+            follow=True,
+        )
+        self.assertContains(imported, "Importerade Provbudget.")
+        copy = Plan.objects.get(user=fresh)
+        self.assertEqual(copy.note, "En anteckning")
+        self.assertEqual(copy.mortgage_balance, Decimal("120000.00"))
+        self.assertEqual(copy.mortgage_rate, Decimal("0.030000"))
+        self.assertEqual(copy.incomes.get(person="Person 1").net, Decimal("10000.00"))
+        self.assertFalse(copy.incomes.get(person="Person 2").active)
+        self.assertEqual(copy.expenses.get(name="=formel").amount, Decimal("15.50"))
+        self.assertEqual(copy.expenses.get(name="=formel").note, "Åäö")
+        self.assertEqual(copy.expenses.get(source=MORTGAGE_INTEREST).amount, Decimal("300.00"))
+        self.assertEqual(copy.expenses.get(source=MORTGAGE_INTEREST).person, "")
+
+    def test_import_accepts_comma_files_and_rejects_a_bad_row(self):
+        user = User.objects.create_user("comma", password="test-pass-123")
+        self.client.force_login(user)
+        payload = (
+            "budget,rad,anteckning,bolåneskuld,ränta_procent,amortering_procent,"
+            "typ,person,brutto,skatt_procent,netto,post,kategori,belopp,aktiv\n"
+            "Sommar,budget,,0,0,0,,,,,,,,,\n"
+            "Sommar,inkomst,,,,,Lön,P1,2000,25,1500,,,,1\n"
+            "Sommar,kostnad,,,,,,P1,,,,Buss,Transport,40,1\n"
+        ).encode()
+        response = self.client.post(
+            reverse("plan_import"),
+            {"fil": SimpleUploadedFile("sommar.csv", payload, content_type="text/csv")},
+            follow=True,
+        )
+        self.assertContains(response, "Importerade Sommar.")
+        plan = Plan.objects.get(user=user, name="Sommar")
+        self.assertEqual(plan.incomes.get().gross, Decimal("2000.00"))
+        self.assertEqual(plan.incomes.get().tax_rate, Decimal("0.250000"))
+        self.assertEqual(plan.incomes.get().net, Decimal("1500.00"))
+        self.assertEqual(plan.expenses.get(source=MANUAL).amount, Decimal("40.00"))
+
+        bad = (
+            "budget;rad;bolåneskuld\n"
+            "Trasig;budget;-5\n"
+        ).encode()
+        rejected = self.client.post(
+            reverse("plan_import"),
+            {"fil": SimpleUploadedFile("trasig.csv", bad, content_type="text/csv")},
+            follow=True,
+        )
+        self.assertContains(rejected, "bolåneskulden kan inte vara negativ")
+        self.assertFalse(Plan.objects.filter(user=user, name="Trasig").exists())

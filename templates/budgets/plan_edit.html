@@ -16,6 +16,7 @@
       {% csrf_token %}
       <button class="secondary" type="submit">Kopiera</button>
     </form>
+    <a class="button secondary" href="{% url 'plan_export_one' plan.pk %}">Exportera</a>
     <a class="button danger" href="{% url 'plan_delete' plan.pk %}">Radera</a>
   </div>
 </div>

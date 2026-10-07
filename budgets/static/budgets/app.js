@@ -121,7 +121,12 @@ openSheet(sheetFromLocation(), false);
 
 document.addEventListener("change", (event) => {
   const input = event.target;
-  if (!(input instanceof HTMLInputElement) || !input.classList.contains("active-toggle")) return;
+  if (!(input instanceof HTMLInputElement)) return;
+  if (input.type === "file" && input.form?.classList.contains("import-form") && input.files?.length) {
+    input.form.requestSubmit();
+    return;
+  }
+  if (!input.classList.contains("active-toggle")) return;
   const row = input.closest("tr");
   if (row) row.classList.toggle("is-off", !input.checked);
 });
