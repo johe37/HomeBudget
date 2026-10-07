@@ -17,7 +17,7 @@
 
 {% if latest %}
   <section class="summary" aria-label="Senaste månaden">
-    <p class="summary-kicker">{{ latest.0.title }} · Bolån {{ latest.1.mortgage.total|kr }} · Bilar {{ latest.1.car_total|kr }}</p>
+    <p class="summary-kicker">{{ latest.0.title }} · Bolån {{ latest.1.mortgage.total|kr }}</p>
     <div class="summary-grid">
       <article>
         <h2>Netto</h2>
@@ -44,7 +44,6 @@
         <tr>
           <th>Månad</th>
           <th class="num">Bolån</th>
-          <th class="num">Bilar</th>
           <th class="num">Netto</th>
           <th class="num">Kostnader</th>
           <th class="num">Kvar</th>
@@ -57,7 +56,6 @@
           <tr>
             <td><a href="{% url 'plan_edit' plan.pk %}">{{ plan.title }}</a></td>
             <td class="num">{{ summary.mortgage.total|kr }}</td>
-            <td class="num">{{ summary.car_total|kr }}</td>
             <td class="num">{{ summary.income_total|kr }}</td>
             <td class="num">{{ summary.expense_total|kr }}</td>
             <td class="num {% if summary.left < 0 %}neg{% else %}pos{% endif %}">{{ summary.left|kr }}</td>

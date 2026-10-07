@@ -69,12 +69,6 @@ def clone_plan(source: Plan, year: int, month: int) -> Plan:
         mortgage_balance=source.mortgage_balance,
         mortgage_rate=source.mortgage_rate,
         amortization_rate=source.amortization_rate,
-        primary_loan=source.primary_loan,
-        primary_insurance=source.primary_insurance,
-        primary_fuel=source.primary_fuel,
-        partner_loan=source.partner_loan,
-        partner_insurance=source.partner_insurance,
-        partner_fuel=source.partner_fuel,
     )
     for income in source.incomes.all():
         income.pk = None

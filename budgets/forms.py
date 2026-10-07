@@ -99,12 +99,6 @@ class PlanForm(forms.ModelForm):
         min_value=0,
         max_value=100,
     )
-    primary_loan = SwedishDecimalField(label="Billån", min_value=0)
-    primary_insurance = SwedishDecimalField(label="Bilförsäkring", min_value=0)
-    primary_fuel = SwedishDecimalField(label="Drivmedel", min_value=0)
-    partner_loan = SwedishDecimalField(label="Billån", min_value=0)
-    partner_insurance = SwedishDecimalField(label="Bilförsäkring", min_value=0)
-    partner_fuel = SwedishDecimalField(label="Drivmedel", min_value=0)
 
     class Meta:
         model = Plan
@@ -113,12 +107,6 @@ class PlanForm(forms.ModelForm):
             "month",
             "note",
             "mortgage_balance",
-            "primary_loan",
-            "primary_insurance",
-            "primary_fuel",
-            "partner_loan",
-            "partner_insurance",
-            "partner_fuel",
         ]
         labels = {"note": "Anteckning"}
 

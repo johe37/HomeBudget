@@ -4,15 +4,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
-from .constants import (
-    MANUAL,
-    MORTGAGE_INTEREST,
-    PARTNER_FUEL,
-    PARTNER_LOAN,
-    PRIMARY_FUEL,
-    PRIMARY_INSURANCE,
-    PRIMARY_LOAN,
-)
+from .constants import MANUAL, MORTGAGE_INTEREST
 from .forms import SwedishDecimalField
 from .models import Expense, Income, Plan
 from .services import summarize_plan, sync_derived
@@ -26,12 +18,6 @@ def post_plan(plan, **overrides):
         "mortgage_balance": str(plan.mortgage_balance),
         "mortgage_rate_percent": str(plan.mortgage_rate * 100),
         "amortization_rate_percent": str(plan.amortization_rate * 100),
-        "primary_loan": str(plan.primary_loan),
-        "primary_insurance": str(plan.primary_insurance),
-        "primary_fuel": str(plan.primary_fuel),
-        "partner_loan": str(plan.partner_loan),
-        "partner_insurance": str(plan.partner_insurance),
-        "partner_fuel": str(plan.partner_fuel),
     }
     incomes = list(plan.incomes.all())
     data.update({
@@ -96,10 +82,6 @@ def sample_plan(user):
         mortgage_balance=Decimal("120000"),
         mortgage_rate=Decimal("0.03"),
         amortization_rate=Decimal("0.02"),
-        primary_insurance=Decimal("100"),
-        primary_fuel=Decimal("400"),
-        partner_loan=Decimal("150"),
-        partner_insurance=Decimal("80"),
     )
     Income.objects.create(plan=plan, kind="Lön", person="Person 1", net=Decimal("10000"), sort_order=0)
     Income.objects.create(plan=plan, kind="Lön", person="Person 2", net=Decimal("8000"), sort_order=1)
@@ -111,6 +93,10 @@ def sample_plan(user):
     Expense.objects.create(
         plan=plan, name="Studielån", category="Lån", person="Person 1",
         amount=Decimal("300"), source=MANUAL, sort_order=101,
+    )
+    Expense.objects.create(
+        plan=plan, name="Bilförsäkring", category="Transport", person="",
+        amount=Decimal("100"), source=MANUAL, sort_order=102,
     )
     sync_derived(plan)
     return plan
@@ -124,27 +110,22 @@ class PlanMathTests(TestCase):
     def test_totals_round_to_ore(self):
         summary = summarize_plan(self.plan)
         self.assertEqual(summary.income_total, Decimal("18500.00"))
-        self.assertEqual(summary.expense_total, Decimal("3530.00"))
-        self.assertEqual(summary.left, Decimal("14970.00"))
+        self.assertEqual(summary.expense_total, Decimal("2900.00"))
+        self.assertEqual(summary.left, Decimal("15600.00"))
         self.assertEqual(summary.mortgage.interest, Decimal("300.00"))
         self.assertEqual(summary.mortgage.amortization, Decimal("200.00"))
         self.assertEqual(summary.mortgage.total, Decimal("500.00"))
-        self.assertEqual(summary.cars[0].total, Decimal("500.00"))
-        self.assertEqual(summary.cars[1].total, Decimal("230.00"))
-        self.assertEqual(summary.car_total, Decimal("730.00"))
 
         interest = self.plan.expenses.get(source="mortgage_interest")
         amort = self.plan.expenses.get(source="mortgage_amortization")
         self.assertEqual(interest.amount, Decimal("300.00"))
         self.assertEqual(interest.person, "")
         self.assertEqual(amort.amount, Decimal("200.00"))
-        self.assertEqual(self.plan.expenses.get(source=PRIMARY_FUEL).person, "")
-        self.assertFalse(Expense.objects.filter(plan=self.plan, source=PRIMARY_LOAN).exists())
-        self.assertFalse(Expense.objects.filter(plan=self.plan, source=PARTNER_FUEL).exists())
+        self.assertEqual(self.plan.expenses.get(name="Bilförsäkring").source, MANUAL)
 
         by_name = {row.category: row.amount for row in summary.categories}
         self.assertEqual(by_name["Boende"], Decimal("500.00"))
-        self.assertEqual(by_name["Transport"], Decimal("730.00"))
+        self.assertEqual(by_name["Transport"], Decimal("100.00"))
         self.assertEqual(by_name["Leva"], Decimal("2000.00"))
         self.assertEqual(by_name["Lån"], Decimal("300.00"))
         self.assertEqual(by_name["Sparande"], Decimal("0.00"))
@@ -157,7 +138,7 @@ class PlanMathTests(TestCase):
         self.assertNotIn("Gemensam", people)
 
         sync_derived(self.plan)
-        self.assertEqual(self.plan.expenses.filter(source=PRIMARY_INSURANCE).count(), 1)
+        self.assertEqual(self.plan.expenses.filter(source=MORTGAGE_INTEREST).count(), 1)
 
     def test_inactive_income_is_excluded(self):
         income = self.plan.incomes.get(person="Person 2")
@@ -166,22 +147,21 @@ class PlanMathTests(TestCase):
         summary = summarize_plan(self.plan)
         self.assertEqual(summary.income_total, Decimal("10500.00"))
 
-    def test_mortgage_and_cars_stay_separate(self):
-        self.plan.primary_insurance = Decimal("999")
-        self.plan.save()
+    def test_a_written_cost_does_not_change_the_mortgage(self):
+        insurance = self.plan.expenses.get(name="Bilförsäkring")
+        insurance.amount = Decimal("999")
+        insurance.save()
         sync_derived(self.plan)
         self.assertEqual(self.plan.expenses.get(source=MORTGAGE_INTEREST).amount, Decimal("300.00"))
-        self.assertEqual(self.plan.expenses.get(source=PRIMARY_INSURANCE).person, "")
-        self.assertEqual(self.plan.expenses.get(source=PARTNER_LOAN).amount, Decimal("150.00"))
+        self.assertEqual(self.plan.expenses.get(name="Bilförsäkring").amount, Decimal("999.00"))
 
         self.plan.mortgage_balance = Decimal("0")
         self.plan.save()
         sync_derived(self.plan)
         self.assertFalse(self.plan.expenses.filter(source=MORTGAGE_INTEREST).exists())
-        self.assertEqual(self.plan.expenses.get(source=PRIMARY_INSURANCE).amount, Decimal("999.00"))
-        self.assertEqual(summarize_plan(self.plan).car_total, Decimal("1629.00"))
+        self.assertEqual(self.plan.expenses.get(name="Bilförsäkring").amount, Decimal("999.00"))
 
-    def test_a_month_starts_with_one_car(self):
+    def test_income_is_the_first_thing_to_fill_in(self):
         user = User.objects.create_user("solo", password="test-pass-123")
         plan = Plan.objects.create(
             user=user,
@@ -190,20 +170,20 @@ class PlanMathTests(TestCase):
             mortgage_balance=Decimal("120000"),
             mortgage_rate=Decimal("0.03"),
             amortization_rate=Decimal("0.02"),
-            primary_insurance=Decimal("100"),
         )
         sync_derived(plan)
-        self.assertFalse(plan.expenses.filter(source=PARTNER_LOAN).exists())
         self.assertEqual(plan.expenses.get(source=MORTGAGE_INTEREST).person, "")
-        summary = summarize_plan(plan)
-        self.assertEqual([car.person for car in summary.cars], ["Bil"])
-        self.assertEqual(summary.car_total, Decimal("100.00"))
 
         self.client.force_login(user)
         page = self.client.get(reverse("plan_edit", args=[plan.pk]))
-        self.assertContains(page, "id_primary_loan")
-        self.assertContains(page, "Lägg till en bil till")
-        self.assertContains(page, 'id="second-car" hidden')
+        html = page.content.decode()
+        self.assertLess(html.index('class="band">År och månad'), html.index('class="band">Inkomster'))
+        self.assertLess(html.index('class="band">Inkomster'), html.index('class="band">Kostnader'))
+        self.assertLess(html.index('class="band">Kostnader'), html.index('class="band">Bolån'))
+        self.assertNotContains(page, "Lägg till en bil till")
+        self.assertNotContains(page, "En bil till")
+        self.assertNotContains(page, "Bilar")
+        self.assertNotContains(page, "id_primary_loan")
         self.assertNotContains(page, 'href="/hushall/"')
         self.assertNotContains(page, 'id="people"')
         self.assertNotContains(page, 'list="people"')
@@ -246,7 +226,7 @@ class AccountAndPlanFlowTests(TestCase):
         page = self.client.get(reverse("plan_edit", args=[plan.pk]))
         self.assertContains(page, "10 000 kr")
         self.assertContains(page, "Bolån totalt")
-        self.assertContains(page, "Bilar totalt")
+        self.assertNotContains(page, "Bilar")
         self.assertNotContains(page, "Tesla")
         self.assertNotContains(page, "Scenario")
 
@@ -280,29 +260,13 @@ class AccountAndPlanFlowTests(TestCase):
         self.assertRedirects(response, reverse("plan_edit", args=[plan.pk]))
         page = self.client.get(reverse("plan_edit", args=[plan.pk]))
         self.assertContains(page, "Bolån totalt")
-        self.assertContains(page, "Bilar totalt")
         self.assertContains(page, "0 kr")
         self.assertNotContains(page, "Tesla")
-        self.assertContains(page, "Lägg till en bil till")
+        self.assertNotContains(page, "Bilar")
+        self.assertNotContains(page, "Lägg till en bil till")
+        html = page.content.decode()
+        self.assertLess(html.index('class="band">Inkomster'), html.index('class="band">Kostnader'))
         self.assertEqual(plan.expenses.count(), 0)
-
-    def test_clearing_the_second_car_drops_its_rows(self):
-        user = User.objects.create_user("pair", password="test-pass-123")
-        plan = sample_plan(user)
-        self.client.force_login(user)
-        data = post_plan(plan)
-        data["partner_loan"] = "0"
-        data["partner_insurance"] = "0"
-        data["partner_fuel"] = "0"
-        saved = self.client.post(reverse("plan_edit", args=[plan.pk]), data)
-        self.assertRedirects(saved, reverse("plan_edit", args=[plan.pk]))
-        plan.refresh_from_db()
-        self.assertEqual(plan.partner_loan, 0)
-        self.assertFalse(plan.expenses.filter(source=PARTNER_LOAN).exists())
-        self.assertTrue(plan.incomes.filter(person="Person 2").exists())
-        page = self.client.get(reverse("plan_edit", args=[plan.pk]))
-        self.assertContains(page, "Lägg till en bil till")
-        self.assertEqual(summarize_plan(plan).car_total, Decimal("500.00"))
 
     def test_bad_amount_does_not_wipe_the_saved_month(self):
         user = User.objects.create_user("writer", password="test-pass-123")

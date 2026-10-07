@@ -2,7 +2,7 @@
 
 A small Django app for a monthly household budget.
 
-You log in, write one month and save it. The next month is a new plan. The mortgage and the cars are two separate calculations.
+You log in, write one month and save it. The next month is a new plan. Income is entered first. A car is an ordinary cost. Mortgage interest and amortization are calculated.
 
 Login is an account on this app. GitHub, Meta and X show up on the login page once their OAuth keys are set.
 
@@ -16,9 +16,9 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-Open http://localhost:8000/ and create an account. A new month starts empty, on Indata. Månad and Översikt are separate pages for the saved result. Yellow fields are what you type. Amounts group thousands with a space as you type. Mortgage interest and amortization are one calculation. Each car's loan, insurance and fuel are another. Both are added to the month when you save.
+Open http://localhost:8000/ and create an account. A new month starts empty, on Indata. Månad and Översikt are separate pages for the saved result. Yellow fields are what you type, income first. Amounts group thousands with a space as you type. Write a car under costs. Mortgage interest and amortization are calculated and added to the month when you save.
 
-Money is rounded to öre. A person is whatever you write on a row. The mortgage and the cars are not assigned to anyone. Add a second car on the month when you have one.
+Money is rounded to öre. A person is whatever you write on a row. The mortgage is not assigned to anyone.
 
 ## Social login
 

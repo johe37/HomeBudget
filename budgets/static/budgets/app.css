@@ -186,7 +186,7 @@ button.danger, .button.danger, a.button.danger {
   text-transform: uppercase;
 }
 
-.fields, .profiles, .split, .calc-panel {
+.fields, .split, .calc-panel {
   display: grid;
   gap: 0.8rem 1rem;
 }
@@ -194,9 +194,6 @@ button.danger, .button.danger, a.button.danger {
 .meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .calc-panel { grid-template-columns: 1fr; }
 .calc-panel .result { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.profiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.profiles.one { grid-template-columns: minmax(0, 28rem); }
-.calc-panel > button { justify-self: start; }
 .split { grid-template-columns: 1.1fr 1fr; align-items: start; }
 .span-all { grid-column: 1 / -1; }
 
@@ -322,7 +319,7 @@ tr.total td { font-weight: 700; border-bottom: 0; }
 @media (max-width: 800px) {
   h1 { font-size: 2rem; }
   .topbar, .page-head { align-items: flex-start; flex-direction: column; }
-  .summary-grid, .profiles, .split { grid-template-columns: 1fr 1fr; }
+  .summary-grid, .split { grid-template-columns: 1fr 1fr; }
   .fields, .meta, .calc-panel, .calc-panel .result { grid-template-columns: 1fr; }
   .span-all { grid-column: auto; }
   .head-actions { justify-content: flex-start; }
@@ -331,5 +328,5 @@ tr.total td { font-weight: 700; border-bottom: 0; }
 
 @media (max-width: 520px) {
   .wrap { width: min(100% - 1.2rem, 1120px); }
-  .summary-grid, .profiles, .split, .result, .calc-panel { grid-template-columns: 1fr; }
+  .summary-grid, .split, .result, .calc-panel { grid-template-columns: 1fr; }
 }

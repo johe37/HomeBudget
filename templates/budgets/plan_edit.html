@@ -8,7 +8,7 @@
   <div>
     <p class="eyebrow">Månadsplan</p>
     <h1>{{ plan.title }}</h1>
-    <p class="lede">Gula fält skrivs. Bolån och bilar är två beräkningar och räknas var för sig när du sparar.</p>
+    <p class="lede">Gula fält skrivs. Börja med inkomsterna. Ränta och amortering på bolånet räknas fram när du sparar.</p>
   </div>
   <div class="head-actions">
     <button form="plan" type="submit">Spara</button>
@@ -67,49 +67,6 @@
       <label class="span-all">{{ form.note.label }} {{ form.note }} {{ form.note.errors }}</label>
     </div>
 
-    <h2 class="band">Bolån</h2>
-    <p class="muted">Ränta och amortering är skuld × procentsats / 12.</p>
-    <div class="calc-panel">
-      <div class="fields">
-        <label>{{ form.mortgage_balance.label }} {{ form.mortgage_balance }} {{ form.mortgage_balance.errors }}</label>
-        <label>{{ form.mortgage_rate_percent.label }} {{ form.mortgage_rate_percent }} {{ form.mortgage_rate_percent.errors }}</label>
-        <label>{{ form.amortization_rate_percent.label }} {{ form.amortization_rate_percent }} {{ form.amortization_rate_percent.errors }}</label>
-      </div>
-      <dl class="result">
-        <div><dt>Ränta per månad</dt><dd><span class="calc">{{ summary.mortgage.interest|kr }}</span></dd></div>
-        <div><dt>Amortering per månad</dt><dd><span class="calc">{{ summary.mortgage.amortization|kr }}</span></dd></div>
-        <div><dt>Bolån totalt</dt><dd><span class="calc">{{ summary.mortgage.total|kr }}</span></dd></div>
-      </dl>
-    </div>
-
-    <h2 class="band">Bilar</h2>
-    <p class="muted">Varje bil räknas för sig. Skriv en person på en egen kostnadsrad om beloppet är någons.</p>
-    <div class="calc-panel">
-      <div class="profiles{% if not second_car %} one{% endif %}">
-        <fieldset>
-          <legend>Bil</legend>
-          <label>{{ form.primary_loan.label }} {{ form.primary_loan }} {{ form.primary_loan.errors }}</label>
-          <label>{{ form.primary_insurance.label }} {{ form.primary_insurance }} {{ form.primary_insurance.errors }}</label>
-          <label>{{ form.primary_fuel.label }} {{ form.primary_fuel }} {{ form.primary_fuel.errors }}</label>
-        </fieldset>
-        <fieldset id="second-car" {% if not second_car %}hidden{% endif %}>
-          <legend>En bil till</legend>
-          <label>{{ form.partner_loan.label }} {{ form.partner_loan }} {{ form.partner_loan.errors }}</label>
-          <label>{{ form.partner_insurance.label }} {{ form.partner_insurance }} {{ form.partner_insurance.errors }}</label>
-          <label>{{ form.partner_fuel.label }} {{ form.partner_fuel }} {{ form.partner_fuel.errors }}</label>
-        </fieldset>
-      </div>
-      {% if not second_car %}
-        <button type="button" data-add-car="#second-car">Lägg till en bil till</button>
-      {% endif %}
-      <dl class="result">
-        {% for car in summary.cars %}
-          <div><dt>{{ car.person }}</dt><dd><span class="calc">{{ car.total|kr }}</span></dd></div>
-        {% endfor %}
-        <div><dt>Bilar totalt</dt><dd><span class="calc">{{ summary.car_total|kr }}</span></dd></div>
-      </dl>
-    </div>
-
     <h2 class="band">Inkomster</h2>
     <p class="muted">Netto är det som räknas. Brutto och skatt är anteckning.</p>
     <div class="table-scroll">
@@ -138,7 +95,7 @@
     </template>
 
     <h2 class="band">Kostnader</h2>
-    <p class="muted">Det du skriver själv. Bolån och bilar läggs till i månaden från sina egna beräkningar.</p>
+    <p class="muted">Skriv det du betalar, även bilen. Bolånets ränta och amortering räknas fram och läggs till i månaden.</p>
     <div class="table-scroll">
       <table class="sheet">
         <thead>
@@ -164,6 +121,21 @@
       {% include "budgets/_expense_row.html" with form=expense_formset.empty_form %}
     </template>
 
+    <h2 class="band">Bolån</h2>
+    <p class="muted">Ränta och amortering är skuld × procentsats / 12.</p>
+    <div class="calc-panel">
+      <div class="fields">
+        <label>{{ form.mortgage_balance.label }} {{ form.mortgage_balance }} {{ form.mortgage_balance.errors }}</label>
+        <label>{{ form.mortgage_rate_percent.label }} {{ form.mortgage_rate_percent }} {{ form.mortgage_rate_percent.errors }}</label>
+        <label>{{ form.amortization_rate_percent.label }} {{ form.amortization_rate_percent }} {{ form.amortization_rate_percent.errors }}</label>
+      </div>
+      <dl class="result">
+        <div><dt>Ränta per månad</dt><dd><span class="calc">{{ summary.mortgage.interest|kr }}</span></dd></div>
+        <div><dt>Amortering per månad</dt><dd><span class="calc">{{ summary.mortgage.amortization|kr }}</span></dd></div>
+        <div><dt>Bolån totalt</dt><dd><span class="calc">{{ summary.mortgage.total|kr }}</span></dd></div>
+      </dl>
+    </div>
+
     <div class="savebar">
       <button type="submit">Spara {{ plan.title }}</button>
     </div>
@@ -179,7 +151,7 @@
 
 <section id="manad" class="block" tabindex="-1" hidden>
   <h2 class="band">Månad</h2>
-  <p class="muted">Hämtas från det som är sparat. Bolån {{ summary.mortgage.total|kr }}. Bilar {{ summary.car_total|kr }}.</p>
+  <p class="muted">Hämtas från det som är sparat. Bolån {{ summary.mortgage.total|kr }}.</p>
   <div class="table-scroll">
     <table class="sheet">
       <thead>

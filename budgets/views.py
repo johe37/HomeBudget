@@ -31,13 +31,6 @@ def dashboard(request):
     )
 
 
-def _second_car_open(plan, form) -> bool:
-    names = ("partner_loan", "partner_insurance", "partner_fuel")
-    if form.is_bound:
-        return any((form.data.get(name) or "").strip() not in {"", "0", "0,0", "0,00", "0.0", "0.00"} for name in names)
-    return any(getattr(plan, name) for name in names)
-
-
 @login_required
 def plan_create(request):
     year, month = next_open_month(request.user)
@@ -104,7 +97,6 @@ def plan_edit(request, pk):
             "income_formset": income_formset,
             "expense_formset": expense_formset,
             "summary": summary,
-            "second_car": _second_car_open(plan, form),
         },
     )
 

@@ -22,12 +22,6 @@ class Plan(models.Model):
     mortgage_balance = models.DecimalField("bolåneskuld", max_digits=12, decimal_places=2, default=0)
     mortgage_rate = models.DecimalField("ränta", max_digits=7, decimal_places=6, default=0)
     amortization_rate = models.DecimalField("amortering", max_digits=7, decimal_places=6, default=0)
-    primary_loan = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    primary_insurance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    primary_fuel = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    partner_loan = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    partner_insurance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    partner_fuel = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

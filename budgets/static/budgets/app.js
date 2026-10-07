@@ -106,18 +106,8 @@ document.addEventListener("click", (event) => {
     return;
   }
   const button = event.target.closest("[data-add-row]");
-  if (button) {
-    addRow(button.dataset.addRow);
-    return;
-  }
-  const carButton = event.target.closest("[data-add-car]");
-  if (!carButton) return;
-  const panel = document.querySelector(carButton.dataset.addCar);
-  if (panel) {
-    panel.hidden = false;
-    panel.parentElement?.classList.remove("one");
-  }
-  carButton.hidden = true;
+  if (!button) return;
+  addRow(button.dataset.addRow);
 });
 
 document.addEventListener("input", (event) => {

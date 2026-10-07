@@ -8,17 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
 
-from .constants import (
-    CATEGORIES,
-    MORTGAGE_AMORTIZATION,
-    MORTGAGE_INTEREST,
-    PARTNER_FUEL,
-    PARTNER_INSURANCE,
-    PARTNER_LOAN,
-    PRIMARY_FUEL,
-    PRIMARY_INSURANCE,
-    PRIMARY_LOAN,
-)
+from .constants import CATEGORIES, MORTGAGE_AMORTIZATION, MORTGAGE_INTEREST
 
 ORE = Decimal("0.01")
 ZERO = Decimal("0.00")
@@ -51,47 +41,11 @@ class MortgageCalc:
     total: Decimal
 
 
-@dataclass(frozen=True)
-class CarCalc:
-    person: str
-    loan: Decimal
-    insurance: Decimal
-    fuel: Decimal
-    total: Decimal
-
-
 def mortgage_calculation(plan) -> MortgageCalc:
-    """Monthly interest and amortization from the balance. Independent of the cars."""
+    """Monthly interest and amortization from the balance."""
     interest = monthly_from_annual(plan.mortgage_balance, plan.mortgage_rate)
     amortization = monthly_from_annual(plan.mortgage_balance, plan.amortization_rate)
     return MortgageCalc(interest, amortization, interest + amortization)
-
-
-def car_rows(plan):
-    """One car, plus a second when it has an amount. Cars are not tied to a person."""
-    rows = [("Bil", plan.primary_loan, plan.primary_insurance, plan.primary_fuel)]
-    if any(money(value) for value in (plan.partner_loan, plan.partner_insurance, plan.partner_fuel)):
-        rows.append(("En bil till", plan.partner_loan, plan.partner_insurance, plan.partner_fuel))
-    return rows
-
-
-def car_calculations(plan) -> list[CarCalc]:
-    """One sum per car. Independent of the mortgage."""
-    cars = []
-    for label, loan, insurance, fuel in car_rows(plan):
-        loan_amount = money(loan)
-        insurance_amount = money(insurance)
-        fuel_amount = money(fuel)
-        cars.append(
-            CarCalc(
-                label,
-                loan_amount,
-                insurance_amount,
-                fuel_amount,
-                loan_amount + insurance_amount + fuel_amount,
-            )
-        )
-    return cars
 
 
 def _nonzero(source, name, category, person, amount, note) -> DerivedLine | None:
@@ -101,7 +55,7 @@ def _nonzero(source, name, category, person, amount, note) -> DerivedLine | None
 
 
 def derived_lines(plan) -> list[DerivedLine]:
-    """Saved cost rows produced by the mortgage calculation and the car calculation."""
+    """Saved cost rows produced by the mortgage calculation."""
     mortgage = mortgage_calculation(plan)
     lines = [
         _nonzero(
@@ -121,18 +75,6 @@ def derived_lines(plan) -> list[DerivedLine]:
             "Från bolånet",
         ),
     ]
-    cars = car_calculations(plan)
-    sources = [(PRIMARY_LOAN, PRIMARY_INSURANCE, PRIMARY_FUEL)]
-    if len(cars) > 1:
-        sources.append((PARTNER_LOAN, PARTNER_INSURANCE, PARTNER_FUEL))
-    for _car, (loan_source, insurance_source, fuel_source) in zip(cars, sources):
-        lines.extend(
-            (
-                _nonzero(loan_source, "Billån", "Transport", "", _car.loan, "Från bilen"),
-                _nonzero(insurance_source, "Bilförsäkring", "Transport", "", _car.insurance, "Från bilen"),
-                _nonzero(fuel_source, "Drivmedel", "Transport", "", _car.fuel, "Från bilen"),
-            )
-        )
     return [line for line in lines if line is not None]
 
 
@@ -176,8 +118,6 @@ class Summary:
     categories: list[CategoryRollup]
     people: list[PersonRollup]
     mortgage: MortgageCalc
-    cars: list[CarCalc]
-    car_total: Decimal
 
 
 def _share(part: Decimal, whole: Decimal) -> Decimal:
@@ -250,8 +190,6 @@ def summarize(plan, incomes, expenses) -> Summary:
         categories.append(CategoryRollup(name, amount, _share(amount, expense_total)))
 
     mortgage = mortgage_calculation(plan)
-    cars = car_calculations(plan)
-    car_total = sum((car.total for car in cars), ZERO)
 
     ordered = []
     for row, _amount in (*income_lines, *expense_rows):
@@ -273,6 +211,4 @@ def summarize(plan, incomes, expenses) -> Summary:
         categories=categories,
         people=people,
         mortgage=mortgage,
-        cars=cars,
-        car_total=car_total,
     )
