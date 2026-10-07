@@ -14,6 +14,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
 body {
   margin: 0;
@@ -187,6 +188,7 @@ button.danger, .button.danger, a.button.danger {
 .calc-panel .result { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .profiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .profiles.one { grid-template-columns: minmax(0, 28rem); }
+.calc-panel > button { justify-self: start; }
 .split { grid-template-columns: 1.1fr 1fr; align-items: start; }
 .span-all { grid-column: 1 / -1; }
 

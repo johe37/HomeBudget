@@ -5,7 +5,7 @@ from django.forms import BaseModelFormSet, modelformset_factory
 from django.forms.formsets import DELETION_FIELD_NAME
 
 from .constants import SWEDISH_MONTHS
-from .models import Expense, Household, Income, Plan
+from .models import Expense, Income, Plan
 
 
 class SwedishDecimalField(forms.DecimalField):
@@ -59,39 +59,6 @@ def _style_form(form):
         field.widget.attrs["class"] = " ".join(classes)
 
 
-class HouseholdForm(forms.ModelForm):
-    class Meta:
-        model = Household
-        fields = ["primary_name", "partner_name", "shared_name"]
-        labels = {
-            "primary_name": "Namn",
-            "partner_name": "En till person",
-            "shared_name": "Gemensamt",
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["partner_name"].required = False
-        self.fields["partner_name"].help_text = "Lämna tomt om du bor själv."
-        self.fields["shared_name"].help_text = "Bolån och annat som inte är en persons eget."
-        _style_form(self)
-
-    def clean_primary_name(self):
-        name = (self.cleaned_data.get("primary_name") or "").strip()
-        if not name:
-            raise forms.ValidationError("Fyll i ett namn.")
-        return name
-
-    def clean_partner_name(self):
-        return (self.cleaned_data.get("partner_name") or "").strip()
-
-    def clean_shared_name(self):
-        name = (self.cleaned_data.get("shared_name") or "").strip()
-        if not name:
-            raise forms.ValidationError("Fyll i ett gemensamt namn.")
-        return name
-
-
 class PlanForm(forms.ModelForm):
     year = forms.IntegerField(label="År", min_value=2000, max_value=2100)
     month = forms.TypedChoiceField(label="Månad", coerce=int, choices=[])
@@ -131,13 +98,9 @@ class PlanForm(forms.ModelForm):
         ]
         labels = {"note": "Anteckning"}
 
-    def __init__(self, *args, user, household, **kwargs):
+    def __init__(self, *args, user, **kwargs):
         self.user = user
-        self.household = household
         super().__init__(*args, **kwargs)
-        if not (household.partner_name or "").strip():
-            for name in ("partner_loan", "partner_insurance", "partner_fuel"):
-                self.fields.pop(name, None)
         self.fields["month"].choices = [(index, SWEDISH_MONTHS[index]) for index in range(1, 13)]
         if not self.is_bound:
             self.fields["mortgage_rate_percent"].initial = Decimal(self.instance.mortgage_rate or 0) * 100
@@ -248,8 +211,6 @@ class IncomeForm(forms.ModelForm):
             return cleaned
         if not cleaned["kind"]:
             self.add_error("kind", "Fyll i typ.")
-        if not cleaned["person"]:
-            self.add_error("person", "Fyll i person.")
         return cleaned
 
     def save(self, commit=True):
@@ -313,8 +274,6 @@ class ExpenseForm(forms.ModelForm):
             self.add_error("name", "Fyll i post.")
         if not cleaned["category"]:
             self.add_error("category", "Fyll i kategori.")
-        if not cleaned["person"]:
-            self.add_error("person", "Fyll i vem.")
         return cleaned
 
     def save(self, commit=True):

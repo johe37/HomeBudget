@@ -68,7 +68,7 @@
     </div>
 
     <h2 class="band">Bolån</h2>
-    <p class="muted">Ränta och amortering är skuld × procentsats / 12. Båda hamnar på {{ household.shared_name }}.</p>
+    <p class="muted">Ränta och amortering är skuld × procentsats / 12.</p>
     <div class="calc-panel">
       <div class="fields">
         <label>{{ form.mortgage_balance.label }} {{ form.mortgage_balance }} {{ form.mortgage_balance.errors }}</label>
@@ -83,28 +83,25 @@
     </div>
 
     <h2 class="band">Bilar</h2>
-    {% if household.partner_name %}
-      <p class="muted">Varje bil räknas för sig. Lån, försäkring och drivmedel hör till personen på bilen.</p>
-    {% else %}
-      <p class="muted">Lån, försäkring och drivmedel hör till {{ household.primary_name }}.</p>
-    {% endif %}
+    <p class="muted">Varje bil räknas för sig. Skriv en person på en egen kostnadsrad om beloppet är någons.</p>
     <div class="calc-panel">
-      <div class="profiles{% if not household.partner_name %} one{% endif %}">
+      <div class="profiles{% if not second_car %} one{% endif %}">
         <fieldset>
-          <legend>{{ household.primary_name }}</legend>
+          <legend>Bil</legend>
           <label>{{ form.primary_loan.label }} {{ form.primary_loan }} {{ form.primary_loan.errors }}</label>
           <label>{{ form.primary_insurance.label }} {{ form.primary_insurance }} {{ form.primary_insurance.errors }}</label>
           <label>{{ form.primary_fuel.label }} {{ form.primary_fuel }} {{ form.primary_fuel.errors }}</label>
         </fieldset>
-        {% if household.partner_name %}
-          <fieldset>
-            <legend>{{ household.partner_name }}</legend>
-            <label>{{ form.partner_loan.label }} {{ form.partner_loan }} {{ form.partner_loan.errors }}</label>
-            <label>{{ form.partner_insurance.label }} {{ form.partner_insurance }} {{ form.partner_insurance.errors }}</label>
-            <label>{{ form.partner_fuel.label }} {{ form.partner_fuel }} {{ form.partner_fuel.errors }}</label>
-          </fieldset>
-        {% endif %}
+        <fieldset id="second-car" {% if not second_car %}hidden{% endif %}>
+          <legend>En bil till</legend>
+          <label>{{ form.partner_loan.label }} {{ form.partner_loan }} {{ form.partner_loan.errors }}</label>
+          <label>{{ form.partner_insurance.label }} {{ form.partner_insurance }} {{ form.partner_insurance.errors }}</label>
+          <label>{{ form.partner_fuel.label }} {{ form.partner_fuel }} {{ form.partner_fuel.errors }}</label>
+        </fieldset>
       </div>
+      {% if not second_car %}
+        <button type="button" data-add-car="#second-car">Lägg till en bil till</button>
+      {% endif %}
       <dl class="result">
         {% for car in summary.cars %}
           <div><dt>{{ car.person }}</dt><dd><span class="calc">{{ car.total|kr }}</span></dd></div>

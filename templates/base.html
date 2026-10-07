@@ -17,7 +17,6 @@
     {% if user.is_authenticated %}
       <nav class="topnav" aria-label="Huvudmeny">
         <a href="{% url 'dashboard' %}">Arkiv</a>
-        <a href="{% url 'household' %}">Hushåll</a>
         <span class="who">{{ user.username }}</span>
         <form method="post" action="{% url 'account_logout' %}">
           {% csrf_token %}

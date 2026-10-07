@@ -12,8 +12,18 @@ function addRow(prefix) {
 
 document.addEventListener("click", (event) => {
   const button = event.target.closest("[data-add-row]");
-  if (!button) return;
-  addRow(button.dataset.addRow);
+  if (button) {
+    addRow(button.dataset.addRow);
+    return;
+  }
+  const carButton = event.target.closest("[data-add-car]");
+  if (!carButton) return;
+  const panel = document.querySelector(carButton.dataset.addCar);
+  if (panel) {
+    panel.hidden = false;
+    panel.parentElement?.classList.remove("one");
+  }
+  carButton.hidden = true;
 });
 
 document.addEventListener("change", (event) => {

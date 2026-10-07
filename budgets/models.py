@@ -10,22 +10,6 @@ from .constants import (
 )
 
 
-class Household(models.Model):
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="household",
-    )
-    primary_name = models.CharField("namn", max_length=80, default="Person 1")
-    partner_name = models.CharField("en till person", max_length=80, blank=True, default="")
-    shared_name = models.CharField("gemensamt", max_length=80, default="Gemensam")
-
-    def __str__(self):
-        if self.partner_name:
-            return f"{self.primary_name} och {self.partner_name}"
-        return self.primary_name
-
-
 class Plan(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,

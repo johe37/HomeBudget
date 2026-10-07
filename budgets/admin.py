@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Expense, Household, Income, Plan
+from .models import Expense, Income, Plan
 
 
 class IncomeInline(admin.TabularInline):
@@ -11,11 +11,6 @@ class IncomeInline(admin.TabularInline):
 class ExpenseInline(admin.TabularInline):
     model = Expense
     extra = 0
-
-
-@admin.register(Household)
-class HouseholdAdmin(admin.ModelAdmin):
-    list_display = ("user", "primary_name", "partner_name", "shared_name")
 
 
 @admin.register(Plan)

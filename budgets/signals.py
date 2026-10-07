@@ -1,7 +1,6 @@
 import os
 
-from django.contrib.auth import get_user_model
-from django.db.models.signals import post_migrate, post_save
+from django.db.models.signals import post_migrate
 from django.db.utils import OperationalError, ProgrammingError
 from django.dispatch import receiver
 
@@ -10,15 +9,6 @@ SOCIAL_PROVIDERS = (
     ("facebook", "Meta", "FACEBOOK_CLIENT_ID", "FACEBOOK_CLIENT_SECRET"),
     ("twitter_oauth2", "X", "X_CLIENT_ID", "X_CLIENT_SECRET"),
 )
-
-
-@receiver(post_save, sender=get_user_model())
-def create_household(sender, instance, created, **kwargs):
-    if not created:
-        return
-    from .models import Household
-
-    Household.objects.get_or_create(user=instance)
 
 
 @receiver(post_migrate)

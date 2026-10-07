@@ -5,12 +5,11 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from .constants import MANUAL
-from .forms import ExpenseFormSet, HouseholdForm, IncomeFormSet, PlanCreateForm, PlanForm
+from .forms import ExpenseFormSet, IncomeFormSet, PlanCreateForm, PlanForm
 from .models import Plan
 from .services import (
     clone_plan,
     create_empty_plan,
-    household_for,
     month_title,
     next_month,
     next_open_month,
@@ -32,20 +31,11 @@ def dashboard(request):
     )
 
 
-@login_required
-def household_edit(request):
-    household = household_for(request.user)
-    form = HouseholdForm(request.POST or None, instance=household)
-    if request.method == "POST" and form.is_valid():
-        household = form.save()
-        plans = Plan.objects.filter(user=request.user)
-        if not household.partner_name:
-            plans.update(partner_loan=0, partner_insurance=0, partner_fuel=0)
-        for plan in plans:
-            sync_derived(plan)
-        messages.success(request, "Namnen är sparade.")
-        return redirect("household")
-    return render(request, "budgets/household.html", {"form": form})
+def _second_car_open(plan, form) -> bool:
+    names = ("partner_loan", "partner_insurance", "partner_fuel")
+    if form.is_bound:
+        return any((form.data.get(name) or "").strip() not in {"", "0", "0,0", "0,00", "0.0", "0.00"} for name in names)
+    return any(getattr(plan, name) for name in names)
 
 
 @login_required
@@ -72,7 +62,6 @@ def plan_create(request):
 @login_required
 def plan_edit(request, pk):
     plan = get_object_or_404(Plan, pk=pk, user=request.user)
-    household = household_for(request.user)
     if request.method == "GET":
         sync_derived(plan)
     income_qs = plan.incomes.all()
@@ -81,7 +70,6 @@ def plan_edit(request, pk):
         request.POST or None,
         instance=plan,
         user=request.user,
-        household=household,
     )
     income_formset = IncomeFormSet(
         request.POST or None,
@@ -116,6 +104,7 @@ def plan_edit(request, pk):
             "income_formset": income_formset,
             "expense_formset": expense_formset,
             "summary": summary,
+            "second_car": _second_car_open(plan, form),
         },
     )
 

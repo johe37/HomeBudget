@@ -18,7 +18,7 @@ python manage.py runserver
 
 Open http://localhost:8000/ and create an account. A new month starts empty. Yellow fields are what you type. Mortgage interest and amortization are one calculation. Each car's loan, insurance and fuel are another. Both are added to the month when you save.
 
-Money is rounded to öre. A new household is one person, Person 1, plus the shared name Gemensam. Add another person under Hushåll if you share the home. Calculated rows follow the names. Rows you typed keep the name they were saved with.
+Money is rounded to öre. A person is whatever you write on a row. The mortgage and the cars are not assigned to anyone. Add a second car on the month when you have one.
 
 ## Social login
 

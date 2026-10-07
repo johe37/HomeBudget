@@ -67,25 +67,24 @@ def mortgage_calculation(plan) -> MortgageCalc:
     return MortgageCalc(interest, amortization, interest + amortization)
 
 
-def car_rows(household, plan):
-    """The cars that belong to people who are actually in the household."""
-    rows = [(household.primary_name, plan.primary_loan, plan.primary_insurance, plan.primary_fuel)]
-    partner = (household.partner_name or "").strip()
-    if partner:
-        rows.append((partner, plan.partner_loan, plan.partner_insurance, plan.partner_fuel))
+def car_rows(plan):
+    """One car, plus a second when it has an amount. Cars are not tied to a person."""
+    rows = [("Bil", plan.primary_loan, plan.primary_insurance, plan.primary_fuel)]
+    if any(money(value) for value in (plan.partner_loan, plan.partner_insurance, plan.partner_fuel)):
+        rows.append(("En bil till", plan.partner_loan, plan.partner_insurance, plan.partner_fuel))
     return rows
 
 
-def car_calculations(plan, household) -> list[CarCalc]:
+def car_calculations(plan) -> list[CarCalc]:
     """One sum per car. Independent of the mortgage."""
     cars = []
-    for person, loan, insurance, fuel in car_rows(household, plan):
+    for label, loan, insurance, fuel in car_rows(plan):
         loan_amount = money(loan)
         insurance_amount = money(insurance)
         fuel_amount = money(fuel)
         cars.append(
             CarCalc(
-                person,
+                label,
                 loan_amount,
                 insurance_amount,
                 fuel_amount,
@@ -101,16 +100,15 @@ def _nonzero(source, name, category, person, amount, note) -> DerivedLine | None
     return DerivedLine(source, name, category, person, amount, note)
 
 
-def derived_lines(plan, household) -> list[DerivedLine]:
+def derived_lines(plan) -> list[DerivedLine]:
     """Saved cost rows produced by the mortgage calculation and the car calculation."""
     mortgage = mortgage_calculation(plan)
-    shared = household.shared_name
     lines = [
         _nonzero(
             MORTGAGE_INTEREST,
             "Bolån, ränta",
             "Boende",
-            shared,
+            "",
             mortgage.interest,
             "Från bolånet",
         ),
@@ -118,28 +116,21 @@ def derived_lines(plan, household) -> list[DerivedLine]:
             MORTGAGE_AMORTIZATION,
             "Bolån, amortering",
             "Boende",
-            shared,
+            "",
             mortgage.amortization,
             "Från bolånet",
         ),
     ]
-    cars = car_calculations(plan, household)
+    cars = car_calculations(plan)
     sources = [(PRIMARY_LOAN, PRIMARY_INSURANCE, PRIMARY_FUEL)]
-    if (household.partner_name or "").strip():
+    if len(cars) > 1:
         sources.append((PARTNER_LOAN, PARTNER_INSURANCE, PARTNER_FUEL))
-    for car, (loan_source, insurance_source, fuel_source) in zip(cars, sources):
+    for _car, (loan_source, insurance_source, fuel_source) in zip(cars, sources):
         lines.extend(
             (
-                _nonzero(loan_source, "Billån", "Transport", car.person, car.loan, "Från bilen"),
-                _nonzero(
-                    insurance_source,
-                    "Bilförsäkring",
-                    "Transport",
-                    car.person,
-                    car.insurance,
-                    "Från bilen",
-                ),
-                _nonzero(fuel_source, "Drivmedel", "Transport", car.person, car.fuel, "Från bilen"),
+                _nonzero(loan_source, "Billån", "Transport", "", _car.loan, "Från bilen"),
+                _nonzero(insurance_source, "Bilförsäkring", "Transport", "", _car.insurance, "Från bilen"),
+                _nonzero(fuel_source, "Drivmedel", "Transport", "", _car.fuel, "Från bilen"),
             )
         )
     return [line for line in lines if line is not None]
@@ -201,7 +192,7 @@ def _active_amount(row) -> Decimal | None:
     return money(getattr(row, "amount", None) if hasattr(row, "amount") else getattr(row, "net", None))
 
 
-def summarize(plan, household, incomes, expenses) -> Summary:
+def summarize(plan, incomes, expenses) -> Summary:
     income_lines = []
     for row in incomes:
         if not row.active:
@@ -259,17 +250,13 @@ def summarize(plan, household, incomes, expenses) -> Summary:
         categories.append(CategoryRollup(name, amount, _share(amount, expense_total)))
 
     mortgage = mortgage_calculation(plan)
-    cars = car_calculations(plan, household)
+    cars = car_calculations(plan)
     car_total = sum((car.total for car in cars), ZERO)
 
-    roles = [household.primary_name, household.partner_name, household.shared_name]
-    names = {row.person for row, _ in income_lines} | {row.person for row, _ in expense_rows}
-    for name in roles:
-        if name:
-            names.add(name)
-    preferred = roles + ["Barn", "Annan"]
-    ordered = [name for name in preferred if name in names]
-    ordered += sorted(name for name in names if name not in ordered)
+    ordered = []
+    for row, _amount in (*income_lines, *expense_rows):
+        if row.person and row.person not in ordered:
+            ordered.append(row.person)
     people = []
     for name in ordered:
         net = sum((net for row, net in income_lines if row.person == name), ZERO)

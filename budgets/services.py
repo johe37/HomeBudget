@@ -2,12 +2,7 @@ from __future__ import annotations
 
 from .calc import derived_lines, summarize
 from .constants import MANUAL, SWEDISH_MONTHS
-from .models import Expense, Household, Plan
-
-
-def household_for(user) -> Household:
-    household, _created = Household.objects.get_or_create(user=user)
-    return household
+from .models import Expense, Plan
 
 
 def month_title(year: int, month: int) -> str:
@@ -31,8 +26,7 @@ def next_open_month(user) -> tuple[int, int]:
 
 
 def sync_derived(plan: Plan) -> None:
-    household = household_for(plan.user)
-    lines = derived_lines(plan, household)
+    lines = derived_lines(plan)
     keep = set()
     for index, line in enumerate(lines):
         keep.add(line.source)
@@ -53,10 +47,8 @@ def sync_derived(plan: Plan) -> None:
 
 
 def summarize_plan(plan: Plan):
-    household = household_for(plan.user)
     return summarize(
         plan,
-        household,
         list(plan.incomes.all()),
         list(plan.expenses.all()),
     )
