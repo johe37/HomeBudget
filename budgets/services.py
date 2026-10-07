@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import json
 import re
+from collections import defaultdict
+from decimal import Decimal
 
-from .calc import derived_lines, summarize
+from django.db import transaction
+
+from .calc import derived_lines, ore, rate_from_micro, scale_ore, summarize
 from .constants import MANUAL
 from .models import Expense, Plan
 
@@ -74,6 +79,69 @@ def create_empty_plan(user, name: str) -> Plan:
     plan = Plan.objects.create(user=user, name=name)
     sync_derived(plan)
     return plan
+
+
+def _percent_map(raw: str) -> dict[str, int]:
+    if not (raw or "").strip():
+        return {}
+    parsed = json.loads(raw)
+    if not isinstance(parsed, dict):
+        raise ValueError("percent map")
+    cleaned = {}
+    for key, value in parsed.items():
+        if not isinstance(key, str):
+            raise ValueError("percent key")
+        number = int(value)
+        cleaned[key] = max(0, min(number, 200))
+    return cleaned
+
+
+def _micro(raw: str) -> int:
+    return max(0, min(int(raw), 1_000_000))
+
+
+def _money_from_ore(amount_ore: int) -> Decimal:
+    return Decimal(amount_ore) / Decimal(100)
+
+
+def _scale_rows(rows, attr: str, percent: int) -> None:
+    if percent == 100 or not rows:
+        return
+    original = [ore(getattr(row, attr)) for row in rows]
+    target = scale_ore(sum(original), percent)
+    scaled = [scale_ore(amount, percent) for amount in original]
+    scaled[-1] += target - sum(scaled)
+    for row, amount_ore in zip(rows, scaled):
+        setattr(row, attr, _money_from_ore(amount_ore))
+        row.save(update_fields=[attr])
+
+
+def save_tried_plan(source: Plan, rate_raw: str, amort_raw: str, income_raw: str, expense_raw: str) -> Plan:
+    """Copy source and apply the Om sliders. The source budget is left as saved."""
+    income_scale = _percent_map(income_raw)
+    expense_scale = _percent_map(expense_raw)
+    with transaction.atomic():
+        clone = clone_plan(source, suggested_copy_name(source.user, source.name))
+        clone.mortgage_rate = rate_from_micro(_micro(rate_raw))
+        clone.amortization_rate = rate_from_micro(_micro(amort_raw))
+        clone.save(update_fields=["mortgage_rate", "amortization_rate"])
+
+        incomes: dict[str, list] = defaultdict(list)
+        for income in clone.incomes.all():
+            if income.active:
+                incomes[income.person or ""].append(income)
+        for person, rows in incomes.items():
+            _scale_rows(rows, "net", income_scale.get(person, 100))
+
+        expenses: dict[str, list] = defaultdict(list)
+        for expense in clone.expenses.filter(source=MANUAL):
+            if expense.active:
+                expenses[(expense.category or "").strip()].append(expense)
+        for category, rows in expenses.items():
+            _scale_rows(rows, "amount", expense_scale.get(category, 100))
+
+        sync_derived(clone)
+    return clone
 
 
 def clone_plan(source: Plan, name: str) -> Plan:

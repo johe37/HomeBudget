@@ -1,10 +1,17 @@
+import json
+import re
+import shutil
+import subprocess
 from decimal import Decimal
+from pathlib import Path
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
+from .calc import scenario_baseline
 from .constants import MANUAL, MORTGAGE_INTEREST
 from .forms import SwedishDecimalField
 from .models import Expense, Income, Plan
@@ -200,6 +207,132 @@ class PlanMathTests(TestCase):
         self.assertContains(page, 'value="120 000"')
         self.assertContains(page, 'class="edit num money"')
         self.assertNotContains(page, 'type="number"')
+
+    def test_what_if_sheet_uses_the_saved_month(self):
+        Expense.objects.create(
+            plan=self.plan, name="Kaffe", category="Leva", person="",
+            amount=Decimal("10.50"), source=MANUAL, sort_order=103,
+        )
+        self.plan.incomes.filter(person="Person 2").update(active=False)
+        Expense.objects.create(
+            plan=self.plan, name="Vilande", category="Leva", person="",
+            amount=Decimal("999"), source=MANUAL, sort_order=104, active=False,
+        )
+        self.plan.mortgage_rate = Decimal("0.035525")
+        self.plan.save()
+        sync_derived(self.plan)
+
+        self.client.force_login(self.user)
+        page = self.client.get(reverse("plan_edit", args=[self.plan.pk]))
+        self.assertContains(page, 'href="#om"')
+        self.assertContains(page, 'id="om" class="block" tabindex="-1" hidden')
+        self.assertContains(page, "Återställ")
+        self.assertContains(page, "Spara som ny budget")
+        self.assertContains(page, "Spara provet som en ny budget")
+        self.assertContains(page, "disabled")
+        self.assertNotContains(page, "Scenario")
+        html = page.content.decode()
+        self.assertLess(html.index('class="band">Kostnader'), html.index('class="band">Bolån'))
+        self.assertLess(html.index('class="band">Bolån'), html.index('class="band">Om'))
+
+        match = re.search(
+            r'<script id="om-baseline" type="application/json">(.*?)</script>',
+            html,
+        )
+        self.assertIsNotNone(match)
+        data = json.loads(match.group(1))
+        summary = summarize_plan(self.plan)
+        self.assertEqual(data["balanceOre"], 12000000)
+        self.assertEqual(data["rateMicro"], 35525)
+        self.assertEqual(data["amortMicro"], 20000)
+        self.assertEqual(
+            data["incomes"],
+            [
+                {"person": "Person 1", "ore": 1000000},
+                {"person": "", "ore": 50000},
+            ],
+        )
+        self.assertEqual(
+            [(row["category"], row["ore"]) for row in data["expenses"]],
+            [("Transport", 10000), ("Leva", 201050), ("Lån", 30000)],
+        )
+        manual = sum((Decimal(row["ore"]) for row in data["expenses"]), Decimal(0)) / 100
+        income = sum((Decimal(row["ore"]) for row in data["incomes"]), Decimal(0)) / 100
+        self.assertEqual(income, summary.income_total)
+        self.assertEqual(manual + summary.mortgage.total, summary.expense_total)
+        self.assertEqual(data, scenario_baseline(self.plan, self.plan.incomes.all(), self.plan.expenses.all()))
+
+    def test_saving_a_trial_keeps_the_original(self):
+        Expense.objects.create(
+            plan=self.plan, name="Vilande", category="Leva", person="",
+            amount=Decimal("999"), source=MANUAL, sort_order=104, active=False,
+        )
+        Expense.objects.create(
+            plan=self.plan, name="Öre ett", category="Övrigt", person="",
+            amount=Decimal("0.01"), source=MANUAL, sort_order=105,
+        )
+        Expense.objects.create(
+            plan=self.plan, name="Öre två", category="Övrigt", person="",
+            amount=Decimal("0.01"), source=MANUAL, sort_order=106,
+        )
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("plan_scenario_save", args=[self.plan.pk]),
+            {
+                "rate_micro": "40000",
+                "amort_micro": "20000",
+                "income_scale": json.dumps({"Person 1": 50, "Person 2": 100, "": 100}),
+                "expense_scale": json.dumps({"Leva": 150, "Övrigt": 50}),
+            },
+            follow=True,
+        )
+        clone = Plan.objects.get(user=self.user, name="Provbudget kopia")
+        self.assertRedirects(response, reverse("plan_edit", args=[clone.pk]))
+        self.assertContains(response, "Sparade provet som Provbudget kopia.")
+        self.plan.refresh_from_db()
+        self.assertEqual(self.plan.mortgage_rate, Decimal("0.030000"))
+        self.assertEqual(self.plan.incomes.get(person="Person 1").net, Decimal("10000.00"))
+        self.assertEqual(self.plan.expenses.get(name="Mat").amount, Decimal("2000.00"))
+        self.assertEqual(clone.mortgage_rate, Decimal("0.040000"))
+        self.assertEqual(clone.amortization_rate, Decimal("0.020000"))
+        self.assertEqual(clone.incomes.get(person="Person 1").net, Decimal("5000.00"))
+        self.assertEqual(clone.incomes.get(person="Person 2").net, Decimal("8000.00"))
+        self.assertEqual(clone.incomes.get(person="").net, Decimal("500.00"))
+        self.assertEqual(clone.expenses.get(name="Mat").amount, Decimal("3000.00"))
+        self.assertEqual(clone.expenses.get(name="Bilförsäkring").amount, Decimal("100.00"))
+        self.assertEqual(clone.expenses.get(name="Vilande").amount, Decimal("999.00"))
+        self.assertEqual(
+            sum(row.amount for row in clone.expenses.filter(category="Övrigt", source=MANUAL)),
+            Decimal("0.01"),
+        )
+        summary = summarize_plan(clone)
+        self.assertEqual(summary.income_total, Decimal("13500.00"))
+        self.assertEqual(summary.mortgage.interest, Decimal("400.00"))
+        self.assertEqual(summary.expense_total, Decimal("4000.01"))
+        self.assertEqual(summary.left, Decimal("9499.99"))
+
+        rejected = self.client.post(
+            reverse("plan_scenario_save", args=[self.plan.pk]),
+            {"rate_micro": "nej", "amort_micro": "0", "income_scale": "{", "expense_scale": "{}"},
+            follow=True,
+        )
+        self.assertContains(rejected, "Provet kunde inte sparas.")
+        self.assertEqual(Plan.objects.filter(user=self.user).count(), 2)
+
+        other = User.objects.create_user("other", password="test-pass-123")
+        self.client.force_login(other)
+        hidden = self.client.post(reverse("plan_scenario_save", args=[self.plan.pk]), {})
+        self.assertEqual(hidden.status_code, 404)
+
+
+class WhatIfScriptTests(TestCase):
+    def test_javascript_matches_the_saved_month(self):
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("node is not installed")
+        script = Path(settings.BASE_DIR) / "budgets" / "static" / "budgets" / "whatif.test.js"
+        result = subprocess.run([node, str(script)], capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
 
 
 class AccountAndPlanFlowTests(TestCase):

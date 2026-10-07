@@ -7,6 +7,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from .calc import scenario_baseline
 from .constants import MANUAL
 from .csvio import BudgetCsvError, export_plans, import_plans
 from .forms import ExpenseFormSet, IncomeFormSet, PlanCreateForm, PlanForm
@@ -14,6 +15,7 @@ from .models import Plan
 from .services import (
     clone_plan,
     create_empty_plan,
+    save_tried_plan,
     suggested_copy_name,
     summarize_plan,
     sync_derived,
@@ -93,8 +95,28 @@ def plan_edit(request, pk):
             "income_formset": income_formset,
             "expense_formset": expense_formset,
             "summary": summary,
+            "scenario": scenario_baseline(plan, plan.incomes.all(), plan.expenses.all()),
         },
     )
+
+
+@login_required
+@require_POST
+def plan_scenario_save(request, pk):
+    source = get_object_or_404(Plan, pk=pk, user=request.user)
+    try:
+        clone = save_tried_plan(
+            source,
+            request.POST.get("rate_micro", ""),
+            request.POST.get("amort_micro", ""),
+            request.POST.get("income_scale", ""),
+            request.POST.get("expense_scale", ""),
+        )
+    except (TypeError, ValueError):
+        messages.error(request, "Provet kunde inte sparas.")
+        return redirect("plan_edit", pk=source.pk)
+    messages.success(request, f"Sparade provet som {clone.title}.")
+    return redirect("plan_edit", pk=clone.pk)
 
 
 @login_required

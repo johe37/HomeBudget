@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
 
-from .constants import CATEGORIES, MORTGAGE_AMORTIZATION, MORTGAGE_INTEREST
+from .constants import CATEGORIES, MANUAL, MORTGAGE_AMORTIZATION, MORTGAGE_INTEREST
 
 ORE = Decimal("0.01")
 ZERO = Decimal("0.00")
@@ -39,6 +39,88 @@ class MortgageCalc:
     interest: Decimal
     amortization: Decimal
     total: Decimal
+
+
+def ore(value) -> int:
+    """Whole öre. money() has already rounded half away from zero."""
+    return int(money(value) * 100)
+
+
+def rate_micro(value) -> int:
+    """Annual rate as millionths. 3% is 30_000, so one step is 0,0001 procentenheter."""
+    return int((Decimal(value or 0) * Decimal(1_000_000)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+
+def div_round_half_away(numerator: int, denominator: int) -> int:
+    """Integer division matching Decimal ROUND_HALF_UP, away from zero on a tie."""
+    n, d = int(numerator), int(denominator)
+    if d < 0:
+        n, d = -n, -d
+    negative = n < 0
+    if negative:
+        n = -n
+    rounded = (n + d // 2) // d
+    return -rounded if negative else rounded
+
+
+def scale_ore(amount_ore: int, percent: int) -> int:
+    return div_round_half_away(int(amount_ore) * int(percent), 100)
+
+
+def rate_from_micro(micro: int) -> Decimal:
+    bounded = max(0, min(int(micro), 1_000_000))
+    return (Decimal(bounded) / Decimal(1_000_000)).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
+
+
+def scenario_baseline(plan, incomes, expenses) -> dict:
+    """Saved rows the what-if sheet scales. Mortgage lines are left out; the sheet recalculates them."""
+    income_amounts: dict[str, Decimal] = {}
+    income_order: list[str] = []
+    for row in incomes:
+        if not getattr(row, "active", True):
+            continue
+        net = money(getattr(row, "net", None))
+        if not (getattr(row, "kind", "") or "").strip() and net == ZERO:
+            continue
+        person = row.person or ""
+        if person not in income_amounts:
+            income_order.append(person)
+            income_amounts[person] = ZERO
+        income_amounts[person] += net
+
+    expense_amounts: dict[str, Decimal] = {}
+    extra: list[str] = []
+    for row in expenses:
+        if getattr(row, "source", MANUAL) != MANUAL:
+            continue
+        if not getattr(row, "active", True):
+            continue
+        amount = money(getattr(row, "amount", None))
+        if not (getattr(row, "name", "") or "").strip() and amount == ZERO:
+            continue
+        category = (row.category or "").strip()
+        if category not in expense_amounts:
+            expense_amounts[category] = ZERO
+            if category not in CATEGORIES:
+                extra.append(category)
+        expense_amounts[category] += amount
+
+    return {
+        "balanceOre": ore(plan.mortgage_balance),
+        "rateMicro": rate_micro(plan.mortgage_rate),
+        "amortMicro": rate_micro(plan.amortization_rate),
+        "incomes": [
+            {"person": name, "ore": ore(income_amounts[name])}
+            for name in income_order
+            if income_amounts[name] != ZERO
+        ],
+        "expenses": [
+            {"category": name, "ore": ore(expense_amounts[name])}
+            for name in list(CATEGORIES) + extra
+            if name in expense_amounts and expense_amounts[name] != ZERO
+        ],
+        "categoryOrder": list(CATEGORIES),
+    }
 
 
 def mortgage_calculation(plan) -> MortgageCalc:

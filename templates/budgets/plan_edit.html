@@ -46,6 +46,7 @@
   <a href="#indata" aria-current="page">Indata</a>
   <a href="#manad">Månad</a>
   <a href="#oversikt">Översikt</a>
+  <a href="#om">Om</a>
 </nav>
 
 {% if form.errors or income_formset.total_error_count or expense_formset.total_error_count %}
@@ -271,4 +272,77 @@
     {% endif %}
   </div>
 </section>
+
+<section id="om" class="block" tabindex="-1" hidden>
+  <header class="sheet-intro om-intro">
+    <div>
+      <h2 class="band">Om</h2>
+      <p class="muted">Prova ränta, kostnader och netto. Spara provet som en ny budget om du vill behålla det.</p>
+    </div>
+    <div class="om-actions">
+      <button class="secondary" type="button" data-om-reset>Återställ</button>
+      <form method="post" action="{% url 'plan_scenario_save' plan.pk %}" data-om-save>
+        {% csrf_token %}
+        <input type="hidden" name="rate_micro" value="{{ scenario.rateMicro }}">
+        <input type="hidden" name="amort_micro" value="{{ scenario.amortMicro }}">
+        <input type="hidden" name="income_scale" value="{}">
+        <input type="hidden" name="expense_scale" value="{}">
+        <button type="submit" disabled>Spara som ny budget</button>
+      </form>
+    </div>
+  </header>
+
+  <section class="summary" aria-label="Provat resultat">
+    <div class="summary-grid">
+      <article class="metric-hero">
+        <h2>Kvar</h2>
+        <p class="numeral" data-om="left"></p>
+        <p class="om-delta" data-om="delta"></p>
+      </article>
+      <article>
+        <h2>Netto</h2>
+        <p class="numeral" data-om="income"></p>
+      </article>
+      <article>
+        <h2>Kostnader</h2>
+        <p class="numeral" data-om="expense"></p>
+      </article>
+      <article>
+        <h2>Sparkvot</h2>
+        <p class="numeral" data-om="savings"></p>
+      </article>
+    </div>
+  </section>
+
+  <div class="om-split">
+    <div class="pane">
+      <h3>Bolån</h3>
+      <div class="levers" data-om="mortgage"></div>
+    </div>
+    <div class="pane">
+      <h3>På ett år</h3>
+      <dl class="result">
+        <div><dt>Kvar</dt><dd data-om="year-left"></dd></div>
+        <div><dt>Ränta</dt><dd data-om="year-interest"></dd></div>
+        <div><dt>Amortering</dt><dd data-om="year-amort"></dd></div>
+        <div><dt>Skuld om ett år</dt><dd data-om="year-debt"></dd></div>
+      </dl>
+      <p class="muted year-note" data-om="year-note"></p>
+    </div>
+  </div>
+
+  <div class="pane">
+    <h3>Kostnader</h3>
+    <div class="levers" data-om="expenses"></div>
+  </div>
+  <div class="pane">
+    <h3>Inkomster</h3>
+    <div class="levers" data-om="incomes"></div>
+  </div>
+  <div class="pane">
+    <h3>Fördelning</h3>
+    <ul class="bars om-bars" data-om="bars"></ul>
+  </div>
+</section>
+{{ scenario|json_script:"om-baseline" }}
 {% endblock %}
