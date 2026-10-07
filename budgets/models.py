@@ -2,12 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
-from .constants import (
-    DERIVED_SOURCES,
-    MANUAL,
-    SOURCE_CHOICES,
-    SWEDISH_MONTHS,
-)
+from .constants import DERIVED_SOURCES, MANUAL, SOURCE_CHOICES
 
 
 class Plan(models.Model):
@@ -16,8 +11,7 @@ class Plan(models.Model):
         on_delete=models.CASCADE,
         related_name="plans",
     )
-    year = models.PositiveSmallIntegerField("år")
-    month = models.PositiveSmallIntegerField("månad")
+    name = models.CharField("namn", max_length=80)
     note = models.CharField("anteckning", max_length=240, blank=True)
     mortgage_balance = models.DecimalField("bolåneskuld", max_digits=12, decimal_places=2, default=0)
     mortgage_rate = models.DecimalField("ränta", max_digits=7, decimal_places=6, default=0)
@@ -26,9 +20,9 @@ class Plan(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-year", "-month"]
+        ordering = ["-updated_at", "name"]
         constraints = [
-            models.UniqueConstraint(fields=["user", "year", "month"], name="unique_plan_month"),
+            models.UniqueConstraint(fields=["user", "name"], name="unique_plan_name"),
         ]
 
     def __str__(self):
@@ -36,7 +30,7 @@ class Plan(models.Model):
 
     @property
     def title(self) -> str:
-        return f"{SWEDISH_MONTHS[self.month]} {self.year}"
+        return self.name
 
 
 class Income(models.Model):

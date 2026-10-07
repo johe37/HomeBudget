@@ -6,15 +6,15 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <p class="eyebrow">Månadsplan</p>
+    <p class="eyebrow">Månadsbudget</p>
     <h1>{{ plan.title }}</h1>
     <p class="lede">Gula fält skrivs. Börja med inkomsterna. Ränta och amortering på bolånet räknas fram när du sparar.</p>
   </div>
   <div class="head-actions">
     <button form="plan" type="submit">Spara</button>
-    <form method="post" action="{% url 'plan_copy' plan.pk %}">
+    <form class="copy-form" method="post" action="{% url 'plan_copy' plan.pk %}">
       {% csrf_token %}
-      <button class="secondary" type="submit">Kopiera till nästa månad</button>
+      <button class="secondary" type="submit">Kopiera</button>
     </form>
     <a class="button danger" href="{% url 'plan_delete' plan.pk %}">Radera</a>
   </div>
@@ -60,10 +60,9 @@
   {{ expense_formset.non_form_errors }}
 
   <section id="indata" class="block" tabindex="-1">
-    <h2 class="band">År och månad</h2>
+    <h2 class="band">Namn</h2>
     <div class="fields meta">
-      <label>{{ form.year.label }} {{ form.year }} {{ form.year.errors }}</label>
-      <label>{{ form.month.label }} {{ form.month }} {{ form.month.errors }}</label>
+      <label class="span-all">{{ form.name.label }} {{ form.name }} {{ form.name.errors }}</label>
       <label class="span-all">{{ form.note.label }} {{ form.note }} {{ form.note.errors }}</label>
     </div>
 

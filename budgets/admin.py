@@ -15,6 +15,6 @@ class ExpenseInline(admin.TabularInline):
 
 @admin.register(Plan)
 class PlanAdmin(admin.ModelAdmin):
-    list_display = ("title", "user", "updated_at")
-    list_filter = ("year",)
+    list_display = ("name", "user", "updated_at")
+    search_fields = ("name",)
     inlines = [IncomeInline, ExpenseInline]

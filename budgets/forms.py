@@ -4,8 +4,8 @@ from django import forms
 from django.forms import BaseModelFormSet, modelformset_factory
 from django.forms.formsets import DELETION_FIELD_NAME
 
-from .constants import SWEDISH_MONTHS
 from .models import Expense, Income, Plan
+from .services import name_taken
 
 
 class SwedishDecimalField(forms.DecimalField):
@@ -79,13 +79,6 @@ def _style_form(form):
 
 
 class PlanForm(forms.ModelForm):
-    year = forms.IntegerField(
-        label="År",
-        min_value=2000,
-        max_value=2100,
-        widget=forms.TextInput(attrs={"inputmode": "numeric", "autocomplete": "off"}),
-    )
-    month = forms.TypedChoiceField(label="Månad", coerce=int, choices=[])
     mortgage_balance = SwedishDecimalField(label="Bolåneskuld", min_value=0)
     mortgage_rate_percent = SwedishDecimalField(
         label="Ränta, procent per år",
@@ -103,17 +96,17 @@ class PlanForm(forms.ModelForm):
     class Meta:
         model = Plan
         fields = [
-            "year",
-            "month",
+            "name",
             "note",
             "mortgage_balance",
         ]
-        labels = {"note": "Anteckning"}
+        labels = {"name": "Namn", "note": "Anteckning"}
 
     def __init__(self, *args, user, **kwargs):
         self.user = user
         super().__init__(*args, **kwargs)
-        self.fields["month"].choices = [(index, SWEDISH_MONTHS[index]) for index in range(1, 13)]
+        self.fields["name"].widget.attrs["autocomplete"] = "off"
+        self.fields["name"].widget.attrs["class"] = "wide"
         if not self.is_bound:
             self.fields["mortgage_rate_percent"].initial = Decimal(self.instance.mortgage_rate or 0) * 100
             self.fields["amortization_rate_percent"].initial = (
@@ -122,17 +115,13 @@ class PlanForm(forms.ModelForm):
         self.fields["note"].widget = forms.TextInput()
         _style_form(self)
 
-    def clean(self):
-        cleaned = super().clean()
-        year = cleaned.get("year")
-        month = cleaned.get("month")
-        if year and month:
-            clash = Plan.objects.filter(user=self.user, year=year, month=month)
-            if self.instance.pk:
-                clash = clash.exclude(pk=self.instance.pk)
-            if clash.exists():
-                self.add_error("month", "Den månaden finns redan.")
-        return cleaned
+    def clean_name(self):
+        name = (self.cleaned_data.get("name") or "").strip()
+        if not name:
+            raise forms.ValidationError("Skriv ett namn.")
+        if name_taken(self.user, name, exclude_pk=self.instance.pk):
+            raise forms.ValidationError("Det namnet finns redan.")
+        return name
 
     def save(self, commit=True):
         plan = super().save(commit=False)
@@ -145,34 +134,31 @@ class PlanForm(forms.ModelForm):
 
 
 class PlanCreateForm(forms.Form):
-    year = forms.IntegerField(
-        label="År",
-        min_value=2000,
-        max_value=2100,
-        widget=forms.TextInput(attrs={"inputmode": "numeric", "autocomplete": "off"}),
+    name = forms.CharField(
+        label="Namn",
+        max_length=80,
+        widget=forms.TextInput(attrs={"autocomplete": "off", "class": "wide"}),
     )
-    month = forms.TypedChoiceField(label="Månad", coerce=int)
     copy_from = forms.ModelChoiceField(
         label="Utgå från",
         queryset=Plan.objects.none(),
         required=False,
-        empty_label="Tom månad",
+        empty_label="Tom månadsbudget",
     )
 
     def __init__(self, *args, user, **kwargs):
         self.user = user
         super().__init__(*args, **kwargs)
-        self.fields["month"].choices = [(index, SWEDISH_MONTHS[index]) for index in range(1, 13)]
         self.fields["copy_from"].queryset = Plan.objects.filter(user=user)
         _style_form(self)
 
-    def clean(self):
-        cleaned = super().clean()
-        year = cleaned.get("year")
-        month = cleaned.get("month")
-        if year and month and Plan.objects.filter(user=self.user, year=year, month=month).exists():
-            self.add_error("month", "Den månaden finns redan.")
-        return cleaned
+    def clean_name(self):
+        name = (self.cleaned_data.get("name") or "").strip()
+        if not name:
+            raise forms.ValidationError("Skriv ett namn.")
+        if name_taken(self.user, name):
+            raise forms.ValidationError("Det namnet finns redan.")
+        return name
 
 
 def _blank_row(cleaned, keys):

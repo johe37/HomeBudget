@@ -12,8 +12,7 @@ from .services import summarize_plan, sync_derived
 
 def post_plan(plan, **overrides):
     data = {
-        "year": str(plan.year),
-        "month": str(plan.month),
+        "name": plan.name,
         "note": plan.note,
         "mortgage_balance": str(plan.mortgage_balance),
         "mortgage_rate_percent": str(plan.mortgage_rate * 100),
@@ -77,8 +76,7 @@ def sample_plan(user):
     """A made-up month. The figures are not from a real household."""
     plan = Plan.objects.create(
         user=user,
-        year=2026,
-        month=3,
+        name="Provbudget",
         mortgage_balance=Decimal("120000"),
         mortgage_rate=Decimal("0.03"),
         amortization_rate=Decimal("0.02"),
@@ -165,8 +163,7 @@ class PlanMathTests(TestCase):
         user = User.objects.create_user("solo", password="test-pass-123")
         plan = Plan.objects.create(
             user=user,
-            year=2026,
-            month=6,
+            name="Juni",
             mortgage_balance=Decimal("120000"),
             mortgage_rate=Decimal("0.03"),
             amortization_rate=Decimal("0.02"),
@@ -177,7 +174,7 @@ class PlanMathTests(TestCase):
         self.client.force_login(user)
         page = self.client.get(reverse("plan_edit", args=[plan.pk]))
         html = page.content.decode()
-        self.assertLess(html.index('class="band">År och månad'), html.index('class="band">Inkomster'))
+        self.assertLess(html.index('class="band">Namn'), html.index('class="band">Inkomster'))
         self.assertLess(html.index('class="band">Inkomster'), html.index('class="band">Kostnader'))
         self.assertLess(html.index('class="band">Kostnader'), html.index('class="band">Bolån'))
         self.assertNotContains(page, "Lägg till en bil till")
@@ -191,7 +188,11 @@ class PlanMathTests(TestCase):
         self.assertContains(page, 'aria-current="page"')
         self.assertContains(page, 'id="manad" class="block" tabindex="-1" hidden')
         self.assertContains(page, 'id="oversikt" class="block" tabindex="-1" hidden')
-        self.assertContains(page, "År och månad")
+        self.assertContains(page, "Namn")
+        self.assertContains(page, "Kopiera")
+        self.assertNotContains(page, "Namn på kopian")
+        self.assertNotContains(page, "År och månad")
+        self.assertNotContains(page, "Kopiera till nästa månad")
         self.assertContains(page, 'value="120 000"')
         self.assertContains(page, 'class="edit num money"')
         self.assertNotContains(page, 'type="number"')
@@ -214,7 +215,9 @@ class AccountAndPlanFlowTests(TestCase):
         })
         self.assertRedirects(response, "/")
         page = self.client.get("/")
-        self.assertContains(page, "Ingen månad ännu")
+        self.assertContains(page, "Månadsbudgetar")
+        self.assertContains(page, "Ingen månadsbudget ännu")
+        self.assertNotContains(page, "Arkiv")
         self.assertNotContains(page, 'href="/hushall/"')
         self.assertTrue(User.objects.filter(username="hushall").exists())
 
@@ -223,6 +226,11 @@ class AccountAndPlanFlowTests(TestCase):
         other = User.objects.create_user("other", password="test-pass-123")
         plan = sample_plan(owner)
         self.client.force_login(owner)
+        listing = self.client.get(reverse("dashboard"))
+        self.assertContains(listing, "Radera")
+        self.assertNotContains(listing, "Ta bort")
+        self.assertNotContains(listing, "Öppna")
+        self.assertContains(listing, f"{reverse('plan_delete', args=[plan.pk])}?fran=lista")
         page = self.client.get(reverse("plan_edit", args=[plan.pk]))
         self.assertContains(page, "10 000 kr")
         self.assertContains(page, "Bolån totalt")
@@ -238,24 +246,32 @@ class AccountAndPlanFlowTests(TestCase):
         self.assertEqual(summarize_plan(plan).income_total, Decimal("20500.00"))
 
         copied = self.client.post(reverse("plan_copy", args=[plan.pk]))
-        april = Plan.objects.get(user=owner, year=2026, month=4)
-        self.assertRedirects(copied, reverse("plan_edit", args=[april.pk]))
-        self.assertEqual(april.incomes.get(person="Person 1").net, Decimal("12000.00"))
+        copy = Plan.objects.get(user=owner, name="Provbudget kopia")
+        self.assertRedirects(copied, reverse("plan_edit", args=[copy.pk]))
+        self.assertEqual(copy.incomes.get(person="Person 1").net, Decimal("12000.00"))
         self.assertEqual(plan.incomes.get(person="Person 1").net, Decimal("12000.00"))
+        again = self.client.post(reverse("plan_copy", args=[copy.pk]))
+        second = Plan.objects.get(user=owner, name="Provbudget kopia 2")
+        self.assertRedirects(again, reverse("plan_edit", args=[second.pk]))
+        second.delete()
+        duplicate = self.client.post(reverse("plan_create"), {"name": "provbudget"})
+        self.assertEqual(duplicate.status_code, 200)
+        self.assertContains(duplicate, "Det namnet finns redan.")
+        self.assertEqual(Plan.objects.filter(user=owner).count(), 2)
 
         self.client.force_login(other)
         hidden = self.client.get(reverse("plan_edit", args=[plan.pk]))
         self.assertEqual(hidden.status_code, 404)
 
         self.client.force_login(owner)
-        removed = self.client.post(reverse("plan_delete", args=[april.pk]))
+        removed = self.client.post(reverse("plan_delete", args=[copy.pk]))
         self.assertRedirects(removed, reverse("dashboard"))
-        self.assertFalse(Plan.objects.filter(pk=april.pk).exists())
+        self.assertFalse(Plan.objects.filter(pk=copy.pk).exists())
 
     def test_empty_plan_shows_both_calculations_at_zero(self):
         user = User.objects.create_user("empty", password="test-pass-123")
         self.client.force_login(user)
-        response = self.client.post(reverse("plan_create"), {"year": "2026", "month": "5"})
+        response = self.client.post(reverse("plan_create"), {"name": "Tom budget"})
         plan = Plan.objects.get(user=user)
         self.assertRedirects(response, reverse("plan_edit", args=[plan.pk]))
         page = self.client.get(reverse("plan_edit", args=[plan.pk]))

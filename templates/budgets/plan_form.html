@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Ny månad · Hushållskalkyl{% endblock %}
+{% block title %}Ny månadsbudget · Hushållskalkyl{% endblock %}
 
 {% block content %}
 <section class="auth-card wide">
-  <p class="eyebrow">Ny månad</p>
-  <h1>Vilken månad ska skrivas</h1>
-  <p class="lede">En tom månad börjar på noll. Du kan också kopiera en månad som redan finns.</p>
+  <p class="eyebrow">Ny månadsbudget</p>
+  <h1>Namnge budgeten</h1>
+  <p class="lede">En tom budget börjar på noll. Du kan också utgå från en som redan finns.</p>
   <form method="post">
     {% csrf_token %}
     {{ form.non_field_errors }}
@@ -15,7 +15,7 @@
       {{ field }}
       {{ field.errors }}
     {% endfor %}
-    <button type="submit">Skapa månad</button>
+    <button type="submit">Skapa</button>
   </form>
 </section>
 {% endblock %}

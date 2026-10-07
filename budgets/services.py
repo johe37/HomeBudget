@@ -1,28 +1,44 @@
 from __future__ import annotations
 
+import re
+
 from .calc import derived_lines, summarize
-from .constants import MANUAL, SWEDISH_MONTHS
+from .constants import MANUAL
 from .models import Expense, Plan
 
-
-def month_title(year: int, month: int) -> str:
-    return f"{SWEDISH_MONTHS[month]} {year}"
+_TRAILING_COPY = re.compile(r"\s+kopia(?:\s+\d+)?$")
 
 
-def next_month(year: int, month: int) -> tuple[int, int]:
-    if month == 12:
-        return year + 1, 1
-    return year, month + 1
+def name_taken(user, name: str, exclude_pk=None) -> bool:
+    existing = Plan.objects.filter(user=user, name__iexact=name)
+    if exclude_pk is not None:
+        existing = existing.exclude(pk=exclude_pk)
+    return existing.exists()
 
 
-def next_open_month(user) -> tuple[int, int]:
-    latest = Plan.objects.filter(user=user).order_by("-year", "-month").first()
-    if latest is None:
-        from datetime import date
+def suggested_copy_name(user, source_name: str) -> str:
+    stem = _copy_stem(source_name)
+    suffix = " kopia"
+    base = f"{stem[: 80 - len(suffix)].rstrip()}{suffix}"
+    candidate = base
+    number = 2
+    while name_taken(user, candidate):
+        extra = f" {number}"
+        room = 80 - len(extra)
+        head = base[:room].rstrip() if room > 0 else ""
+        candidate = f"{head}{extra}"[:80]
+        number += 1
+    return candidate
 
-        today = date.today()
-        return today.year, today.month
-    return next_month(latest.year, latest.month)
+
+def _copy_stem(source_name: str) -> str:
+    stem = source_name.strip()
+    while stem:
+        shortened = _TRAILING_COPY.sub("", stem).strip()
+        if not shortened or shortened == stem:
+            return stem
+        stem = shortened
+    return source_name.strip()
 
 
 def sync_derived(plan: Plan) -> None:
@@ -54,17 +70,16 @@ def summarize_plan(plan: Plan):
     )
 
 
-def create_empty_plan(user, year: int, month: int) -> Plan:
-    plan = Plan.objects.create(user=user, year=year, month=month)
+def create_empty_plan(user, name: str) -> Plan:
+    plan = Plan.objects.create(user=user, name=name)
     sync_derived(plan)
     return plan
 
 
-def clone_plan(source: Plan, year: int, month: int) -> Plan:
+def clone_plan(source: Plan, name: str) -> Plan:
     clone = Plan.objects.create(
         user=source.user,
-        year=year,
-        month=month,
+        name=name,
         note=source.note,
         mortgage_balance=source.mortgage_balance,
         mortgage_rate=source.mortgage_rate,

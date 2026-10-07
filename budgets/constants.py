@@ -1,19 +1,3 @@
-SWEDISH_MONTHS = [
-    None,
-    "Januari",
-    "Februari",
-    "Mars",
-    "April",
-    "Maj",
-    "Juni",
-    "Juli",
-    "Augusti",
-    "September",
-    "Oktober",
-    "November",
-    "December",
-]
-
 CATEGORIES = ["Boende", "Transport", "Leva", "Lån", "Sparande", "Övrigt"]
 INCOME_KINDS = [
     "Lön",

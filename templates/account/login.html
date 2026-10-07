@@ -5,9 +5,9 @@
 
 {% block content %}
 <section class="auth-card">
-  <p class="eyebrow">Hushållets månad</p>
+  <p class="eyebrow">Månadsbudget</p>
   <h1>Logga in</h1>
-  <p class="lede">Skriv inkomster och kostnader för en månad, spara, och gå vidare till nästa utan att skriva över arkivet.</p>
+  <p class="lede">Skriv inkomster och kostnader och spara dem som en egen månadsbudget. Gör flera och jämför.</p>
   <form method="post" action="{% url 'account_login' %}">
     {% csrf_token %}
     {{ redirect_field }}

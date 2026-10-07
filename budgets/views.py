@@ -10,9 +10,7 @@ from .models import Plan
 from .services import (
     clone_plan,
     create_empty_plan,
-    month_title,
-    next_month,
-    next_open_month,
+    suggested_copy_name,
     summarize_plan,
     sync_derived,
 )
@@ -33,20 +31,14 @@ def dashboard(request):
 
 @login_required
 def plan_create(request):
-    year, month = next_open_month(request.user)
-    form = PlanCreateForm(
-        request.POST or None,
-        user=request.user,
-        initial={"year": year, "month": month},
-    )
+    form = PlanCreateForm(request.POST or None, user=request.user)
     if request.method == "POST" and form.is_valid():
-        chosen_year = form.cleaned_data["year"]
-        chosen_month = form.cleaned_data["month"]
+        name = form.cleaned_data["name"]
         source = form.cleaned_data["copy_from"]
         if source is None:
-            plan = create_empty_plan(request.user, chosen_year, chosen_month)
+            plan = create_empty_plan(request.user, name)
         else:
-            plan = clone_plan(source, chosen_year, chosen_month)
+            plan = clone_plan(source, name)
         messages.success(request, f"{plan.title} är skapad.")
         return redirect("plan_edit", pk=plan.pk)
     return render(request, "budgets/plan_form.html", {"form": form})
@@ -105,11 +97,7 @@ def plan_edit(request, pk):
 @require_POST
 def plan_copy(request, pk):
     source = get_object_or_404(Plan, pk=pk, user=request.user)
-    year, month = next_month(source.year, source.month)
-    if Plan.objects.filter(user=request.user, year=year, month=month).exists():
-        messages.error(request, f"{month_title(year, month)} finns redan.")
-        return redirect("plan_edit", pk=source.pk)
-    clone = clone_plan(source, year, month)
+    clone = clone_plan(source, suggested_copy_name(request.user, source.name))
     messages.success(request, f"Kopierade till {clone.title}.")
     return redirect("plan_edit", pk=clone.pk)
 
@@ -122,4 +110,8 @@ def plan_delete(request, pk):
         plan.delete()
         messages.success(request, f"{title} är raderad.")
         return redirect("dashboard")
-    return render(request, "budgets/plan_delete.html", {"plan": plan})
+    return render(
+        request,
+        "budgets/plan_delete.html",
+        {"plan": plan, "from_list": request.GET.get("fran") == "lista"},
+    )

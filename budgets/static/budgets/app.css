@@ -88,6 +88,7 @@ a:hover { color: #144a30; }
 
 .page-head { justify-content: space-between; align-items: flex-end; margin-bottom: 1rem; }
 .head-actions { justify-content: flex-end; }
+.copy-form { margin: 0; }
 
 .eyebrow {
   margin: 0;
@@ -240,6 +241,8 @@ input.edit[type="checkbox"] {
 }
 table.sheet { width: 100%; border-collapse: collapse; min-width: 680px; }
 table.archive { min-width: 640px; }
+table.archive td.actions { text-align: right; white-space: nowrap; }
+table.archive .button { padding: 0.28rem 0.75rem; }
 table.sheet th {
   text-align: left;
   font-size: 0.75rem;

@@ -4,13 +4,17 @@
 
 {% block content %}
 <section class="auth-card">
-  <p class="eyebrow">Arkiv</p>
+  <p class="eyebrow">Månadsbudgetar</p>
   <h1>Radera {{ plan.title }}?</h1>
-  <p>Månadens inkomster och kostnader tas bort. Det går inte att ångra.</p>
+  <p>Månadsbudgetens inkomster och kostnader tas bort. Det går inte att ångra.</p>
   <form method="post">
     {% csrf_token %}
     <button class="danger" type="submit">Radera {{ plan.title }}</button>
-    <a class="button secondary" href="{% url 'plan_edit' plan.pk %}">Behåll</a>
+    {% if from_list %}
+      <a class="button secondary" href="{% url 'dashboard' %}">Behåll</a>
+    {% else %}
+      <a class="button secondary" href="{% url 'plan_edit' plan.pk %}">Behåll</a>
+    {% endif %}
   </form>
 </section>
 {% endblock %}

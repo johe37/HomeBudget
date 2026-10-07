@@ -18,8 +18,7 @@ class Migration(migrations.Migration):
             name='Plan',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('year', models.PositiveSmallIntegerField(verbose_name='år')),
-                ('month', models.PositiveSmallIntegerField(verbose_name='månad')),
+                ('name', models.CharField(max_length=80, verbose_name='namn')),
                 ('note', models.CharField(blank=True, max_length=240, verbose_name='anteckning')),
                 ('mortgage_balance', models.DecimalField(decimal_places=2, default=0, max_digits=12, verbose_name='bolåneskuld')),
                 ('mortgage_rate', models.DecimalField(decimal_places=6, default=0, max_digits=7, verbose_name='ränta')),
@@ -29,7 +28,7 @@ class Migration(migrations.Migration):
                 ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='plans', to=settings.AUTH_USER_MODEL)),
             ],
             options={
-                'ordering': ['-year', '-month'],
+                'ordering': ['-updated_at', 'name'],
             },
         ),
         migrations.CreateModel(
@@ -69,7 +68,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='plan',
-            constraint=models.UniqueConstraint(fields=('user', 'year', 'month'), name='unique_plan_month'),
+            constraint=models.UniqueConstraint(fields=('user', 'name'), name='unique_plan_name'),
         ),
         migrations.AddConstraint(
             model_name='expense',
