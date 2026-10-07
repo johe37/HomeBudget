@@ -195,7 +195,6 @@ class IncomeForm(forms.ModelForm):
         ):
             self.fields[name].widget.attrs["aria-label"] = label
         self.fields["kind"].widget.attrs["list"] = "income-kinds"
-        self.fields["person"].widget.attrs["list"] = "people"
         self.fields["kind"].widget.attrs["class"] = "wide"
         self.fields["active"].widget.attrs["class"] = "active-toggle"
         _style_form(self)
@@ -257,7 +256,6 @@ class ExpenseForm(forms.ModelForm):
             self.fields[name].widget.attrs["aria-label"] = label
         self.fields["name"].widget.attrs["class"] = "wide"
         self.fields["category"].widget.attrs["list"] = "categories"
-        self.fields["person"].widget.attrs["list"] = "people"
         self.fields["active"].widget.attrs["class"] = "active-toggle"
         _style_form(self)
 

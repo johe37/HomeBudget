@@ -197,6 +197,8 @@ class PlanMathTests(TestCase):
         self.assertContains(page, "Lägg till en bil till")
         self.assertContains(page, 'id="second-car" hidden')
         self.assertNotContains(page, 'href="/hushall/"')
+        self.assertNotContains(page, 'id="people"')
+        self.assertNotContains(page, 'list="people"')
 
 
 class AccountAndPlanFlowTests(TestCase):

@@ -24,7 +24,6 @@ INCOME_KINDS = [
     "Utbetalning",
     "Övrig inkomst",
 ]
-EXTRA_PEOPLE = ["Barn", "Annan"]
 
 MANUAL = "manual"
 MORTGAGE_INTEREST = "mortgage_interest"
