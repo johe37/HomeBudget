@@ -121,12 +121,15 @@ class PlanMathTests(TestCase):
         self.assertEqual(amort.amount, Decimal("200.00"))
         self.assertEqual(self.plan.expenses.get(name="Bilförsäkring").source, MANUAL)
 
+        self.assertEqual(
+            [row.category for row in summary.categories],
+            ["Boende", "Transport", "Leva", "Lån"],
+        )
         by_name = {row.category: row.amount for row in summary.categories}
         self.assertEqual(by_name["Boende"], Decimal("500.00"))
         self.assertEqual(by_name["Transport"], Decimal("100.00"))
         self.assertEqual(by_name["Leva"], Decimal("2000.00"))
         self.assertEqual(by_name["Lån"], Decimal("300.00"))
-        self.assertEqual(by_name["Sparande"], Decimal("0.00"))
 
         people = {row.person: row for row in summary.people}
         self.assertEqual(people["Person 1"].net, Decimal("10000.00"))

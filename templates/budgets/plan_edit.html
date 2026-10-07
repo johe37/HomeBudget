@@ -223,19 +223,22 @@
   <div class="split">
     <div>
       <h3>Fördelning</h3>
-      <ul class="bars">
-        {% for category in summary.categories %}
-          <li>
-            <div class="bar-label"><span>{{ category.category }}</span><span>{{ category.amount|kr }} · {{ category.share|pct }}</span></div>
-            <div class="track" aria-hidden="true"><span style="width: {{ category.bar_pct }}%"></span></div>
-          </li>
-        {% endfor %}
-      </ul>
+      {% if summary.categories %}
+        <ul class="bars">
+          {% for category in summary.categories %}
+            <li>
+              <div class="bar-label"><span>{{ category.category }}</span><span>{{ category.amount|kr }} · {{ category.share|pct }}</span></div>
+              <div class="track" aria-hidden="true"><span style="width: {{ category.bar_pct }}%"></span></div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted">Inga kostnader med kategori ännu.</p>
+      {% endif %}
     </div>
     <div>
       <h3>Per person</h3>
-      <div class="table-scroll">
-        <table class="sheet">
+      <table class="sheet people">
           <thead>
             <tr>
               <th>Person</th>
@@ -255,7 +258,6 @@
             {% endfor %}
           </tbody>
         </table>
-      </div>
     </div>
   </div>
 </section>

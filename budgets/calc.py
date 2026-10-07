@@ -177,16 +177,19 @@ def summarize(plan, incomes, expenses) -> Summary:
         for row, amount in expense_rows
     ]
 
-    by_category: dict[str, Decimal] = {name: ZERO for name in CATEGORIES}
+    by_category: dict[str, Decimal] = {}
     for row, amount in expense_rows:
-        by_category[row.category] = by_category.get(row.category, ZERO) + amount
+        name = (row.category or "").strip()
+        if not name:
+            continue
+        by_category[name] = by_category.get(name, ZERO) + amount
     categories = []
     seen = set()
     for name in list(CATEGORIES) + sorted(by_category):
-        if name in seen:
+        if name in seen or name not in by_category:
             continue
         seen.add(name)
-        amount = by_category.get(name, ZERO)
+        amount = by_category[name]
         categories.append(CategoryRollup(name, amount, _share(amount, expense_total)))
 
     mortgage = mortgage_calculation(plan)

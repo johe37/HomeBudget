@@ -196,6 +196,7 @@ button.danger, .button.danger, a.button.danger {
 .calc-panel { grid-template-columns: 1fr; }
 .calc-panel .result { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .split { grid-template-columns: 1.1fr 1fr; align-items: start; }
+.split > * { min-width: 0; }
 .span-all { grid-column: 1 / -1; }
 
 fieldset {
@@ -241,6 +242,8 @@ input.edit[type="checkbox"] {
 }
 table.sheet { width: 100%; border-collapse: collapse; min-width: 680px; }
 table.archive { min-width: 640px; }
+table.sheet.people { min-width: 0; table-layout: fixed; }
+table.sheet.people th { white-space: normal; overflow-wrap: break-word; }
 table.archive td.actions { text-align: right; white-space: nowrap; }
 table.archive .button { padding: 0.28rem 0.75rem; }
 table.sheet th {
