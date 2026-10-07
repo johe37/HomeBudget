@@ -26,8 +26,10 @@ class SwedishDecimalField(forms.DecimalField):
             return value
         quantum = Decimal("1").scaleb(-self.places)
         quantized = Decimal(value).quantize(quantum)
-        text = f"{quantized:.{self.places}f}".rstrip("0").rstrip(".")
-        return text.replace(".", ",")
+        text = f"{quantized:.{self.places}f}".rstrip("0").rstrip(".").replace(".", ",")
+        if self.places <= 2:
+            text = _group_thousands(text)
+        return text
 
     def to_python(self, value):
         if isinstance(value, str):
@@ -50,17 +52,39 @@ class SwedishDecimalField(forms.DecimalField):
         return parsed.quantize(quantum, rounding=ROUND_HALF_UP)
 
 
+def _group_thousands(text: str) -> str:
+    sign = ""
+    if text.startswith("-"):
+        sign, text = "-", text[1:]
+    whole, separator, fraction = text.partition(",")
+    chunks = []
+    while whole:
+        chunks.append(whole[-3:])
+        whole = whole[:-3]
+    grouped = " ".join(reversed(chunks))
+    if separator:
+        return f"{sign}{grouped},{fraction}"
+    return f"{sign}{grouped}"
+
+
 def _style_form(form):
-    for name, field in form.fields.items():
+    for _name, field in form.fields.items():
         css = field.widget.attrs.get("class", "")
-        classes = [part for part in (css, "edit") if part]
-        if name == "year" or isinstance(field, SwedishDecimalField):
+        classes = [part for part in (*css.split(), "edit") if part]
+        if isinstance(field, SwedishDecimalField):
             classes.append("num")
-        field.widget.attrs["class"] = " ".join(classes)
+            if field.places <= 2:
+                classes.append("money")
+        field.widget.attrs["class"] = " ".join(dict.fromkeys(classes))
 
 
 class PlanForm(forms.ModelForm):
-    year = forms.IntegerField(label="År", min_value=2000, max_value=2100)
+    year = forms.IntegerField(
+        label="År",
+        min_value=2000,
+        max_value=2100,
+        widget=forms.TextInput(attrs={"inputmode": "numeric", "autocomplete": "off"}),
+    )
     month = forms.TypedChoiceField(label="Månad", coerce=int, choices=[])
     mortgage_balance = SwedishDecimalField(label="Bolåneskuld", min_value=0)
     mortgage_rate_percent = SwedishDecimalField(
@@ -133,7 +157,12 @@ class PlanForm(forms.ModelForm):
 
 
 class PlanCreateForm(forms.Form):
-    year = forms.IntegerField(label="År", min_value=2000, max_value=2100)
+    year = forms.IntegerField(
+        label="År",
+        min_value=2000,
+        max_value=2100,
+        widget=forms.TextInput(attrs={"inputmode": "numeric", "autocomplete": "off"}),
+    )
     month = forms.TypedChoiceField(label="Månad", coerce=int)
     copy_from = forms.ModelChoiceField(
         label="Utgå från",

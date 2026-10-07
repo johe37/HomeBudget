@@ -130,14 +130,22 @@ button.danger, .button.danger, a.button.danger {
   border-color: #e4c4bc;
 }
 
-.sheets { margin: 0.4rem 0 1rem; }
+.sheets { margin: 0.2rem 0 1rem; gap: 0.4rem; }
 .sheets a {
-  color: var(--ink);
+  color: var(--muted);
   text-decoration: none;
-  border-bottom: 2px solid transparent;
   font-weight: 700;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
 }
-.sheets a:hover { border-color: var(--good); }
+.sheets a:hover { color: var(--ink); background: rgba(255, 253, 248, 0.7); }
+.sheets a[aria-current="page"] {
+  color: #f6f1e7;
+  background: var(--band);
+  border-color: var(--band);
+}
+.sheets a[aria-current="page"]:hover { color: #f6f1e7; }
 
 .summary, .block, .empty, .auth-card, .callout {
   background: var(--card);
@@ -216,6 +224,8 @@ input.edit, select.edit, textarea.edit {
   font-weight: 500;
 }
 input.num { text-align: right; font-variant-numeric: tabular-nums; }
+.fields.meta input.edit,
+.fields.meta select.edit { text-align: left; }
 input.edit[type="checkbox"] {
   width: 1.1rem;
   height: 1.1rem;

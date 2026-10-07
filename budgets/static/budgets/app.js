@@ -1,3 +1,91 @@
+const SHEETS = ["indata", "manad", "oversikt"];
+
+function sheetFromLocation() {
+  const name = location.hash.replace(/^#/, "");
+  return SHEETS.includes(name) ? name : "indata";
+}
+
+function openSheet(name, record) {
+  const id = SHEETS.includes(name) ? name : "indata";
+  for (const sheet of SHEETS) {
+    const section = document.getElementById(sheet);
+    if (section) section.hidden = sheet !== id;
+  }
+  document.querySelectorAll(".sheets a").forEach((link) => {
+    if (link.getAttribute("href") === `#${id}`) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  });
+  if (record && location.hash !== `#${id}`) history.pushState(null, "", `#${id}`);
+  if (record) window.scrollTo(0, 0);
+}
+
+function formatMoney(raw) {
+  const original = String(raw);
+  const trimmed = original.trim();
+  if (trimmed === "") return "";
+  if (/[a-zåäö]/i.test(trimmed.replace(/kr/gi, ""))) return original;
+
+  let text = trimmed.replace(/[\s\u00a0]/g, "").replace(/kr/gi, "").replace(/%/g, "");
+  let negative = false;
+  if (text.startsWith("-")) {
+    negative = true;
+    text = text.slice(1);
+  }
+
+  let wholeRaw = text;
+  let fraction = null;
+  if (text.includes(",")) {
+    const comma = text.indexOf(",");
+    wholeRaw = text.slice(0, comma).replace(/\./g, "");
+    fraction = text.slice(comma + 1).replace(/\D/g, "").slice(0, 2);
+  } else if (text.includes(".")) {
+    const parts = text.split(".");
+    const last = parts[parts.length - 1];
+    const head = parts.slice(0, -1);
+    const groupedThousands = parts.length > 2 || (
+      last.length === 3 && head.every((part, index) => /^\d+$/.test(part) && (index === 0 ? part.length >= 1 : part.length === 3))
+    );
+    if (groupedThousands && last.length === 3) {
+      wholeRaw = parts.join("");
+    } else {
+      wholeRaw = head.join("");
+      fraction = last.replace(/\D/g, "").slice(0, 2);
+    }
+  }
+
+  let whole = wholeRaw.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+  if (whole === "") {
+    if (fraction === null) return negative ? "-" : "";
+    whole = "0";
+  }
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  const body = fraction === null ? grouped : `${grouped},${fraction}`;
+  return negative ? `-${body}` : body;
+}
+
+function caretFromDigits(formatted, digits) {
+  if (digits <= 0) return 0;
+  let seen = 0;
+  for (let index = 0; index < formatted.length; index += 1) {
+    if (/\d/.test(formatted[index])) seen += 1;
+    if (seen >= digits) return index + 1;
+  }
+  return formatted.length;
+}
+
+function formatMoneyInput(input) {
+  if (!(input instanceof HTMLInputElement) || !input.classList.contains("money")) return;
+  const formatted = formatMoney(input.value);
+  if (formatted === input.value) return;
+  const caret = input.selectionStart;
+  const digitsBefore = (input.value.slice(0, caret ?? input.value.length).match(/\d/g) || []).length;
+  input.value = formatted;
+  if (document.activeElement === input && caret !== null) {
+    const next = caretFromDigits(formatted, digitsBefore);
+    input.setSelectionRange(next, next);
+  }
+}
+
 function addRow(prefix) {
   const total = document.getElementById(`id_${prefix}-TOTAL_FORMS`);
   const proto = document.getElementById(`${prefix}-empty`);
@@ -11,6 +99,12 @@ function addRow(prefix) {
 }
 
 document.addEventListener("click", (event) => {
+  const tab = event.target.closest(".sheets a");
+  if (tab) {
+    event.preventDefault();
+    openSheet(tab.getAttribute("href").replace(/^#/, ""), true);
+    return;
+  }
   const button = event.target.closest("[data-add-row]");
   if (button) {
     addRow(button.dataset.addRow);
@@ -25,6 +119,15 @@ document.addEventListener("click", (event) => {
   }
   carButton.hidden = true;
 });
+
+document.addEventListener("input", (event) => {
+  formatMoneyInput(event.target);
+});
+
+window.addEventListener("popstate", () => openSheet(sheetFromLocation(), false));
+
+document.querySelectorAll("input.money").forEach((input) => formatMoneyInput(input));
+openSheet(sheetFromLocation(), false);
 
 document.addEventListener("change", (event) => {
   const input = event.target;

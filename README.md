@@ -16,7 +16,7 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-Open http://localhost:8000/ and create an account. A new month starts empty. Yellow fields are what you type. Mortgage interest and amortization are one calculation. Each car's loan, insurance and fuel are another. Both are added to the month when you save.
+Open http://localhost:8000/ and create an account. A new month starts empty, on Indata. Månad and Översikt are separate pages for the saved result. Yellow fields are what you type. Amounts group thousands with a space as you type. Mortgage interest and amortization are one calculation. Each car's loan, insurance and fuel are another. Both are added to the month when you save.
 
 Money is rounded to öre. A person is whatever you write on a row. The mortgage and the cars are not assigned to anyone. Add a second car on the month when you have one.
 

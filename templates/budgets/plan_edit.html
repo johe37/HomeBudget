@@ -20,8 +20,8 @@
   </div>
 </div>
 
-<nav class="sheets" aria-label="Blad">
-  <a href="#indata">Indata</a>
+<nav class="sheets" aria-label="Sidor">
+  <a href="#indata" aria-current="page">Indata</a>
   <a href="#manad">Månad</a>
   <a href="#oversikt">Översikt</a>
 </nav>
@@ -59,8 +59,8 @@
   {{ income_formset.non_form_errors }}
   {{ expense_formset.non_form_errors }}
 
-  <section id="indata" class="block">
-    <h2 class="band">Månad</h2>
+  <section id="indata" class="block" tabindex="-1">
+    <h2 class="band">År och månad</h2>
     <div class="fields meta">
       <label>{{ form.year.label }} {{ form.year }} {{ form.year.errors }}</label>
       <label>{{ form.month.label }} {{ form.month }} {{ form.month.errors }}</label>
@@ -177,7 +177,7 @@
   </datalist>
 </form>
 
-<section id="manad" class="block">
+<section id="manad" class="block" tabindex="-1" hidden>
   <h2 class="band">Månad</h2>
   <p class="muted">Hämtas från det som är sparat. Bolån {{ summary.mortgage.total|kr }}. Bilar {{ summary.car_total|kr }}.</p>
   <div class="table-scroll">
@@ -247,7 +247,7 @@
   </dl>
 </section>
 
-<section id="oversikt" class="block">
+<section id="oversikt" class="block" tabindex="-1" hidden>
   <h2 class="band">Översikt</h2>
   <div class="split">
     <div>
