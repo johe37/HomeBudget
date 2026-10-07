@@ -4,28 +4,64 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#eef2ef">
+  <script>
+    (function () {
+      var theme = "light";
+      try {
+        var stored = localStorage.getItem("hb-theme");
+        if (stored === "light" || stored === "dark") theme = stored;
+      } catch (error) {}
+      document.documentElement.setAttribute("data-theme", theme);
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute("content", theme === "dark" ? "#0d1210" : "#eef2ef");
+    })();
+  </script>
   <title>{% block title %}Hushållskalkyl{% endblock %}</title>
   <link rel="icon" href="{% static 'budgets/favicon.svg' %}" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'budgets/app.css' %}">
 </head>
-<body>
+<body{% block body_attrs %}{% endblock %}>
+  <a class="skip" href="#innehall">Hoppa till innehåll</a>
   <header class="topbar">
-    <a class="brand" href="{% url 'dashboard' %}">Hushållskalkyl</a>
-    {% if user.is_authenticated %}
-      <nav class="topnav" aria-label="Huvudmeny">
-        <a href="{% url 'dashboard' %}">Månadsbudgetar</a>
-        <span class="who">{{ user.username }}</span>
-        <form method="post" action="{% url 'account_logout' %}">
-          {% csrf_token %}
-          <button class="linkish" type="submit">Logga ut</button>
-        </form>
-      </nav>
-    {% endif %}
+    <a class="brand" href="{% url 'dashboard' %}">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="9" fill="#14201a"/>
+        <path d="M7.5 21.5c2.4-1.1 3.8-5 5.6-5 1.6 0 2.1 2.4 3.8 2.4 2.3 0 3.4-6.4 7.6-8.4" fill="none" stroke="#8dffb8" stroke-width="2.25" stroke-linecap="round"/>
+      </svg>
+      <span>Hushållskalkyl</span>
+    </a>
+    <div class="topbar-tools">
+      {% if user.is_authenticated %}
+        <nav class="topnav" aria-label="Sidor">
+          <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == "dashboard" %}aria-current="page"{% endif %}>Månadsbudgetar</a>
+        </nav>
+        <div class="account">
+          <span class="who">
+            <span class="avatar" aria-hidden="true">{{ user.username|slice:":1"|upper }}</span>
+            <span class="who-name">{{ user.username }}</span>
+          </span>
+          <form method="post" action="{% url 'account_logout' %}">
+            {% csrf_token %}
+            <button class="logout" type="submit">Logga ut</button>
+          </form>
+        </div>
+      {% endif %}
+      <button type="button" class="icon-button theme-toggle" data-theme-toggle aria-pressed="false" aria-label="Byt till mörkt läge" title="Byt till mörkt läge">
+        <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M20 14.5A8.2 8.2 0 0 1 9.5 4 7 7 0 1 0 20 14.5z"/>
+        </svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="4" fill="currentColor"/>
+          <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 2.4v2.2M12 19.4v2.2M2.4 12h2.2M19.4 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/>
+        </svg>
+      </button>
+    </div>
   </header>
-  <main class="wrap">
+  <main id="innehall" class="wrap">
     {% if messages %}
       <ul class="messages">
         {% for message in messages %}

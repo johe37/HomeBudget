@@ -1,4 +1,32 @@
 const SHEETS = ["indata", "manad", "oversikt"];
+const THEME_KEY = "hb-theme";
+
+function storedTheme() {
+  try {
+    const value = localStorage.getItem(THEME_KEY);
+    return value === "light" || value === "dark" ? value : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function applyTheme(theme) {
+  const dark = theme === "dark";
+  document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", dark ? "#0d1210" : "#eef2ef");
+  const button = document.querySelector("[data-theme-toggle]");
+  if (button) {
+    const label = dark ? "Byt till ljust läge" : "Byt till mörkt läge";
+    button.setAttribute("aria-pressed", dark ? "true" : "false");
+    button.setAttribute("aria-label", label);
+    button.title = label;
+  }
+}
+
+function activeTheme() {
+  return storedTheme() || document.documentElement.getAttribute("data-theme") || "light";
+}
 
 function sheetFromLocation() {
   const name = location.hash.replace(/^#/, "");
@@ -99,6 +127,17 @@ function addRow(prefix) {
 }
 
 document.addEventListener("click", (event) => {
+  const themeToggle = event.target.closest("[data-theme-toggle]");
+  if (themeToggle) {
+    const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    try {
+      localStorage.setItem(THEME_KEY, next);
+    } catch (error) {
+      /* Valet gäller den här visningen om lagring är avstängd. */
+    }
+    applyTheme(next);
+    return;
+  }
   const tab = event.target.closest(".sheets a");
   if (tab) {
     event.preventDefault();
@@ -118,6 +157,7 @@ window.addEventListener("popstate", () => openSheet(sheetFromLocation(), false))
 
 document.querySelectorAll("input.money").forEach((input) => formatMoneyInput(input));
 openSheet(sheetFromLocation(), false);
+applyTheme(activeTheme());
 
 document.addEventListener("change", (event) => {
   const input = event.target;

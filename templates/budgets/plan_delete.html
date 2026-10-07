@@ -7,7 +7,7 @@
   <p class="eyebrow">Månadsbudgetar</p>
   <h1>Radera {{ plan.title }}?</h1>
   <p>Månadsbudgetens inkomster och kostnader tas bort. Det går inte att ångra.</p>
-  <form method="post">
+  <form class="confirm" method="post">
     {% csrf_token %}
     <button class="danger" type="submit">Radera {{ plan.title }}</button>
     {% if from_list %}

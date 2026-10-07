@@ -8,7 +8,7 @@
   <div>
     <p class="eyebrow">Månadsbudget</p>
     <h1>{{ plan.title }}</h1>
-    <p class="lede">Gula fält skrivs. Börja med inkomsterna. Ränta och amortering på bolånet räknas fram när du sparar.</p>
+    <p class="lede">Fälten är det du skriver. Börja med inkomsterna. Ränta och amortering på bolånet räknas fram när du sparar.</p>
   </div>
   <div class="head-actions">
     <button form="plan" type="submit">Spara</button>
@@ -21,14 +21,12 @@
   </div>
 </div>
 
-<nav class="sheets" aria-label="Sidor">
-  <a href="#indata" aria-current="page">Indata</a>
-  <a href="#manad">Månad</a>
-  <a href="#oversikt">Översikt</a>
-</nav>
-
-<section class="summary tight" aria-label="Sparat resultat">
+<section class="summary" aria-label="Sparat resultat">
   <div class="summary-grid">
+    <article class="metric-hero">
+      <h2>Kvar</h2>
+      <p class="numeral {% if summary.left < 0 %}neg{% else %}pos{% endif %}">{{ summary.left|kr }}</p>
+    </article>
     <article>
       <h2>Netto</h2>
       <p class="numeral">{{ summary.income_total|kr }}</p>
@@ -38,15 +36,17 @@
       <p class="numeral">{{ summary.expense_total|kr }}</p>
     </article>
     <article>
-      <h2>Kvar</h2>
-      <p class="numeral {% if summary.left < 0 %}neg{% else %}pos{% endif %}">{{ summary.left|kr }}</p>
-    </article>
-    <article>
       <h2>Sparkvot</h2>
       <p class="numeral">{{ summary.savings_rate|pct }}</p>
     </article>
   </div>
 </section>
+
+<nav class="sheets" aria-label="Sidor">
+  <a href="#indata" aria-current="page">Indata</a>
+  <a href="#manad">Månad</a>
+  <a href="#oversikt">Översikt</a>
+</nav>
 
 {% if form.errors or income_formset.total_error_count or expense_formset.total_error_count %}
   <p class="banner">Rätta fälten och spara igen. Månad och översikt visar fortfarande senaste sparade version.</p>
@@ -61,83 +61,90 @@
   {{ expense_formset.non_form_errors }}
 
   <section id="indata" class="block" tabindex="-1">
-    <h2 class="band">Namn</h2>
-    <div class="fields meta">
-      <label class="span-all">{{ form.name.label }} {{ form.name }} {{ form.name.errors }}</label>
-      <label class="span-all">{{ form.note.label }} {{ form.note }} {{ form.note.errors }}</label>
-    </div>
-
-    <h2 class="band">Inkomster</h2>
-    <p class="muted">Netto är det som räknas. Brutto och skatt är anteckning.</p>
-    <div class="table-scroll">
-      <table class="sheet">
-        <thead>
-          <tr>
-            <th>Typ</th>
-            <th>Person</th>
-            <th class="num">Brutto</th>
-            <th class="num">Skatt %</th>
-            <th class="num">Netto</th>
-            <th>Aktiv</th>
-            <th>Ta bort</th>
-          </tr>
-        </thead>
-        <tbody id="income-rows">
-          {% for income_form in income_formset %}
-            {% include "budgets/_income_row.html" with form=income_form %}
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    <button class="secondary" type="button" data-add-row="income">Lägg till inkomst</button>
-    <template id="income-empty">
-      {% include "budgets/_income_row.html" with form=income_formset.empty_form %}
-    </template>
-
-    <h2 class="band">Kostnader</h2>
-    <p class="muted">Skriv det du betalar, även bilen. Bolånets ränta och amortering räknas fram och läggs till i månaden.</p>
-    <div class="table-scroll">
-      <table class="sheet">
-        <thead>
-          <tr>
-            <th>Post</th>
-            <th>Kategori</th>
-            <th>Vem</th>
-            <th class="num">Belopp</th>
-            <th>Anteckning</th>
-            <th>Aktiv</th>
-            <th>Ta bort</th>
-          </tr>
-        </thead>
-        <tbody id="expense-rows">
-          {% for expense_form in expense_formset %}
-            {% include "budgets/_expense_row.html" with form=expense_form %}
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    <button class="secondary" type="button" data-add-row="expense">Lägg till kostnad</button>
-    <template id="expense-empty">
-      {% include "budgets/_expense_row.html" with form=expense_formset.empty_form %}
-    </template>
-
-    <h2 class="band">Bolån</h2>
-    <p class="muted">Ränta och amortering är skuld × procentsats / 12.</p>
-    <div class="calc-panel">
-      <div class="fields">
-        <label>{{ form.mortgage_balance.label }} {{ form.mortgage_balance }} {{ form.mortgage_balance.errors }}</label>
-        <label>{{ form.mortgage_rate_percent.label }} {{ form.mortgage_rate_percent }} {{ form.mortgage_rate_percent.errors }}</label>
-        <label>{{ form.amortization_rate_percent.label }} {{ form.amortization_rate_percent }} {{ form.amortization_rate_percent.errors }}</label>
+    <div class="pane">
+      <h2 class="band">Namn</h2>
+      <div class="fields meta">
+        <label class="span-all">{{ form.name.label }} {{ form.name }} {{ form.name.errors }}</label>
+        <label class="span-all">{{ form.note.label }} {{ form.note }} {{ form.note.errors }}</label>
       </div>
-      <dl class="result">
-        <div><dt>Ränta per månad</dt><dd><span class="calc">{{ summary.mortgage.interest|kr }}</span></dd></div>
-        <div><dt>Amortering per månad</dt><dd><span class="calc">{{ summary.mortgage.amortization|kr }}</span></dd></div>
-        <div><dt>Bolån totalt</dt><dd><span class="calc">{{ summary.mortgage.total|kr }}</span></dd></div>
-      </dl>
     </div>
 
-    <div class="savebar">
-      <button type="submit">Spara {{ plan.title }}</button>
+    <div class="pane">
+      <h2 class="band">Inkomster</h2>
+      <p class="muted">Netto är det som räknas. Brutto och skatt är anteckning.</p>
+      <div class="table-scroll">
+        <table class="sheet">
+          <thead>
+            <tr>
+              <th scope="col">Typ</th>
+              <th scope="col">Person</th>
+              <th class="num" scope="col">Brutto</th>
+              <th class="num" scope="col">Skatt %</th>
+              <th class="num" scope="col">Netto</th>
+              <th scope="col">Aktiv</th>
+              <th scope="col">Ta bort</th>
+            </tr>
+          </thead>
+          <tbody id="income-rows">
+            {% for income_form in income_formset %}
+              {% include "budgets/_income_row.html" with form=income_form %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <button class="secondary" type="button" data-add-row="income">Lägg till inkomst</button>
+      <template id="income-empty">
+        {% include "budgets/_income_row.html" with form=income_formset.empty_form %}
+      </template>
+    </div>
+
+    <div class="pane">
+      <h2 class="band">Kostnader</h2>
+      <p class="muted">Skriv det du betalar, även bilen. Bolånets ränta och amortering räknas fram och läggs till i månaden.</p>
+      <div class="table-scroll">
+        <table class="sheet">
+          <thead>
+            <tr>
+              <th scope="col">Post</th>
+              <th scope="col">Kategori</th>
+              <th scope="col">Vem</th>
+              <th class="num" scope="col">Belopp</th>
+              <th scope="col">Anteckning</th>
+              <th scope="col">Aktiv</th>
+              <th scope="col">Ta bort</th>
+            </tr>
+          </thead>
+          <tbody id="expense-rows">
+            {% for expense_form in expense_formset %}
+              {% include "budgets/_expense_row.html" with form=expense_form %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <button class="secondary" type="button" data-add-row="expense">Lägg till kostnad</button>
+      <template id="expense-empty">
+        {% include "budgets/_expense_row.html" with form=expense_formset.empty_form %}
+      </template>
+    </div>
+
+    <div class="pane">
+      <h2 class="band">Bolån</h2>
+      <p class="muted">Ränta och amortering är skuld × procentsats / 12. Siffrorna nedan är beräknade.</p>
+      <div class="calc-panel">
+        <div class="fields">
+          <label>{{ form.mortgage_balance.label }} {{ form.mortgage_balance }} {{ form.mortgage_balance.errors }}</label>
+          <label>{{ form.mortgage_rate_percent.label }} {{ form.mortgage_rate_percent }} {{ form.mortgage_rate_percent.errors }}</label>
+          <label>{{ form.amortization_rate_percent.label }} {{ form.amortization_rate_percent }} {{ form.amortization_rate_percent.errors }}</label>
+        </div>
+        <dl class="result">
+          <div><dt>Ränta per månad</dt><dd><span class="calc">{{ summary.mortgage.interest|kr }}</span></dd></div>
+          <div><dt>Amortering per månad</dt><dd><span class="calc">{{ summary.mortgage.amortization|kr }}</span></dd></div>
+          <div><dt>Bolån totalt</dt><dd><span class="calc">{{ summary.mortgage.total|kr }}</span></dd></div>
+        </dl>
+      </div>
+      <div class="savebar">
+        <button type="submit">Spara {{ plan.title }}</button>
+      </div>
     </div>
   </section>
 
@@ -150,68 +157,76 @@
 </form>
 
 <section id="manad" class="block" tabindex="-1" hidden>
-  <h2 class="band">Månad</h2>
-  <p class="muted">Hämtas från det som är sparat. Bolån {{ summary.mortgage.total|kr }}.</p>
-  <div class="table-scroll">
-    <table class="sheet">
-      <thead>
-        <tr>
-          <th>Typ</th>
-          <th>Person</th>
-          <th class="num">Netto</th>
-          <th class="num">Andel</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in summary.incomes %}
+  <header class="sheet-intro">
+    <h2 class="band">Månad</h2>
+    <p class="muted">Hämtas från det som är sparat. Bolån {{ summary.mortgage.total|kr }}.</p>
+  </header>
+  <div class="pane">
+    <h3>Inkomster</h3>
+    <div class="table-scroll">
+      <table class="sheet report">
+        <thead>
           <tr>
-            <td>{{ row.label }}</td>
-            <td>{{ row.person }}</td>
-            <td class="num">{{ row.amount|kr }}</td>
-            <td class="num">{{ row.share|pct }}</td>
+            <th scope="col">Typ</th>
+            <th scope="col">Person</th>
+            <th class="num" scope="col">Netto</th>
+            <th class="num" scope="col">Andel</th>
           </tr>
-        {% endfor %}
-        <tr class="total">
-          <td>Totalt</td>
-          <td></td>
-          <td class="num">{{ summary.income_total|kr }}</td>
-          <td class="num">{% if summary.income_total %}100,0 %{% else %}–{% endif %}</td>
-        </tr>
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for row in summary.incomes %}
+            <tr>
+              <td>{{ row.label }}</td>
+              <td>{{ row.person }}</td>
+              <td class="num">{{ row.amount|kr }}</td>
+              <td class="num">{{ row.share|pct }}</td>
+            </tr>
+          {% endfor %}
+          <tr class="total">
+            <td>Totalt</td>
+            <td></td>
+            <td class="num">{{ summary.income_total|kr }}</td>
+            <td class="num">{% if summary.income_total %}100,0 %{% else %}–{% endif %}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
-  <div class="table-scroll">
-    <table class="sheet">
-      <thead>
-        <tr>
-          <th>Post</th>
-          <th>Kategori</th>
-          <th>Vem</th>
-          <th class="num">Belopp</th>
-          <th class="num">Andel</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in summary.expenses %}
+  <div class="pane">
+    <h3>Kostnader</h3>
+    <div class="table-scroll">
+      <table class="sheet report">
+        <thead>
           <tr>
-            <td>{{ row.label }}</td>
-            <td>{{ row.category }}</td>
-            <td>{{ row.person }}</td>
-            <td class="num">{{ row.amount|kr }}</td>
-            <td class="num">{{ row.share|pct }}</td>
+            <th scope="col">Post</th>
+            <th scope="col">Kategori</th>
+            <th scope="col">Vem</th>
+            <th class="num" scope="col">Belopp</th>
+            <th class="num" scope="col">Andel</th>
           </tr>
-        {% endfor %}
-        <tr class="total">
-          <td>Totalt</td>
-          <td></td>
-          <td></td>
-          <td class="num">{{ summary.expense_total|kr }}</td>
-          <td class="num">{% if summary.expense_total %}100,0 %{% else %}–{% endif %}</td>
-        </tr>
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for row in summary.expenses %}
+            <tr>
+              <td>{{ row.label }}</td>
+              <td>{{ row.category }}</td>
+              <td>{{ row.person }}</td>
+              <td class="num">{{ row.amount|kr }}</td>
+              <td class="num">{{ row.share|pct }}</td>
+            </tr>
+          {% endfor %}
+          <tr class="total">
+            <td>Totalt</td>
+            <td></td>
+            <td></td>
+            <td class="num">{{ summary.expense_total|kr }}</td>
+            <td class="num">{% if summary.expense_total %}100,0 %{% else %}–{% endif %}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
-  <dl class="result">
+  <dl class="result quad">
     <div><dt>Intäkter</dt><dd>{{ summary.income_total|kr }}</dd></div>
     <div><dt>Kostnader</dt><dd>{{ summary.expense_total|kr }}</dd></div>
     <div><dt>Kvar</dt><dd class="{% if summary.left < 0 %}neg{% else %}pos{% endif %}">{{ summary.left|kr }}</dd></div>
@@ -221,45 +236,39 @@
 
 <section id="oversikt" class="block" tabindex="-1" hidden>
   <h2 class="band">Översikt</h2>
-  <div class="split">
-    <div>
-      <h3>Fördelning</h3>
-      {% if summary.categories %}
-        <ul class="bars">
-          {% for category in summary.categories %}
-            <li>
-              <div class="bar-label"><span>{{ category.category }}</span><span>{{ category.amount|kr }} · {{ category.share|pct }}</span></div>
-              <div class="track" aria-hidden="true"><span style="width: {{ category.bar_pct }}%"></span></div>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="muted">Inga kostnader med kategori ännu.</p>
-      {% endif %}
-    </div>
-    <div>
-      <h3>Per person</h3>
-      <table class="sheet people">
-          <thead>
-            <tr>
-              <th>Person</th>
-              <th class="num">Netto</th>
-              <th class="num">Egna kostnader</th>
-              <th class="num">Skillnad</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for person in summary.people %}
-              <tr>
-                <td>{{ person.person }}</td>
-                <td class="num">{{ person.net|kr }}</td>
-                <td class="num">{{ person.own_costs|kr }}</td>
-                <td class="num {% if person.difference < 0 %}neg{% else %}pos{% endif %}">{{ person.difference|kr }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-    </div>
+  <div class="pane">
+    <h3>Fördelning</h3>
+    {% if summary.categories %}
+      <ul class="bars">
+        {% for category in summary.categories %}
+          <li>
+            <div class="bar-label"><span>{{ category.category }}</span><span>{{ category.amount|kr }} · {{ category.share|pct }}</span></div>
+            <div class="track" aria-hidden="true"><span style="width: {{ category.bar_pct }}%"></span></div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">Inga kostnader med kategori ännu.</p>
+    {% endif %}
+  </div>
+  <div class="pane">
+    <h3>Per person</h3>
+    {% if summary.people %}
+      <ul class="person-grid">
+        {% for person in summary.people %}
+          <li>
+            <h4>{{ person.person }}</h4>
+            <dl>
+              <div><dt>Netto</dt><dd>{{ person.net|kr }}</dd></div>
+              <div><dt>Egna kostnader</dt><dd>{{ person.own_costs|kr }}</dd></div>
+              <div><dt>Skillnad</dt><dd class="{% if person.difference < 0 %}neg{% else %}pos{% endif %}">{{ person.difference|kr }}</dd></div>
+            </dl>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">Ingen person är angiven ännu.</p>
+    {% endif %}
   </div>
 </section>
 {% endblock %}

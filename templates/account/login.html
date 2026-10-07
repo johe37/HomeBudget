@@ -2,42 +2,69 @@
 {% load socialaccount %}
 
 {% block title %}Logga in · Hushållskalkyl{% endblock %}
+{% block body_attrs %} class="gate"{% endblock %}
 
 {% block content %}
-<section class="auth-card">
-  <p class="eyebrow">Månadsbudget</p>
-  <h1>Logga in</h1>
-  <p class="lede">Skriv inkomster och kostnader och spara dem som en egen månadsbudget. Gör flera och jämför.</p>
-  <form method="post" action="{% url 'account_login' %}">
-    {% csrf_token %}
-    {{ redirect_field }}
-    {{ form.non_field_errors }}
-    <label for="{{ form.login.id_for_label }}">Användarnamn</label>
-    {{ form.login }}
-    {{ form.login.errors }}
-    <label for="{{ form.password.id_for_label }}">Lösenord</label>
-    {{ form.password }}
-    {{ form.password.errors }}
-    {% if form.remember %}
-      <label class="checkline" for="{{ form.remember.id_for_label }}">
-        {{ form.remember }} Kom ihåg mig
-      </label>
+<section class="gate">
+  <aside class="gate-aside">
+    <a class="brand on-dark" href="{% url 'dashboard' %}">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="9" fill="#14201a"/>
+        <path d="M7.5 21.5c2.4-1.1 3.8-5 5.6-5 1.6 0 2.1 2.4 3.8 2.4 2.3 0 3.4-6.4 7.6-8.4" fill="none" stroke="#8dffb8" stroke-width="2.25" stroke-linecap="round"/>
+      </svg>
+      <span>Hushållskalkyl</span>
+    </a>
+    <p class="gate-title">Se vad som blir kvar varje månad.</p>
+    <ol class="gate-facts">
+      <li>
+        <strong>Inkomster först</strong>
+        <span>Netto är det som räknas. Brutto och skatt är anteckning.</span>
+      </li>
+      <li>
+        <strong>Bolånet räknas</strong>
+        <span>Ränta och amortering blir en månadskostnad när du sparar.</span>
+      </li>
+      <li>
+        <strong>Flera budgetar</strong>
+        <span>Varje namn är en egen kalkyl. Jämför dem i listan.</span>
+      </li>
+    </ol>
+  </aside>
+  <section class="auth-card">
+    <p class="eyebrow">Månadsbudget</p>
+    <h1>Logga in</h1>
+    <p class="lede">Skriv inkomster och kostnader och spara dem som en egen månadsbudget. Gör flera och jämför.</p>
+    <form method="post" action="{% url 'account_login' %}">
+      {% csrf_token %}
+      {{ redirect_field }}
+      {{ form.non_field_errors }}
+      <label for="{{ form.login.id_for_label }}">Användarnamn</label>
+      {{ form.login }}
+      {{ form.login.errors }}
+      <label for="{{ form.password.id_for_label }}">Lösenord</label>
+      {{ form.password }}
+      {{ form.password.errors }}
+      {% if form.remember %}
+        <label class="checkline" for="{{ form.remember.id_for_label }}">
+          {{ form.remember }} Kom ihåg mig
+        </label>
+      {% endif %}
+      <button type="submit">Logga in</button>
+    </form>
+    <p class="switch">Inget konto ännu? <a href="{% url 'account_signup' %}">Skapa konto</a></p>
+    {% get_providers as socialaccount_providers %}
+    {% if socialaccount_providers %}
+      <div class="social">
+        <p>Eller fortsätt med</p>
+        {% for provider in socialaccount_providers %}
+          <a class="button secondary" href="{% provider_login_url provider.id process='login' %}">
+            {% if provider.id == "facebook" %}Meta{% else %}{{ provider.name }}{% endif %}
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted">GitHub, Meta och X kan kopplas på när OAuth-nycklarna finns. Fram till dess räcker ett eget konto.</p>
     {% endif %}
-    <button type="submit">Logga in</button>
-  </form>
-  <p class="switch">Inget konto ännu? <a href="{% url 'account_signup' %}">Skapa konto</a></p>
-  {% get_providers as socialaccount_providers %}
-  {% if socialaccount_providers %}
-    <div class="social">
-      <p>Eller fortsätt med</p>
-      {% for provider in socialaccount_providers %}
-        <a class="button secondary" href="{% provider_login_url provider.id process='login' %}">
-          {% if provider.id == "facebook" %}Meta{% else %}{{ provider.name }}{% endif %}
-        </a>
-      {% endfor %}
-    </div>
-  {% else %}
-    <p class="muted">GitHub, Meta och X kan kopplas på när OAuth-nycklarna finns. Fram till dess räcker ett eget konto.</p>
-  {% endif %}
+  </section>
 </section>
 {% endblock %}

@@ -6,9 +6,9 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <p class="eyebrow">Månadsbudgetar</p>
+    <p class="eyebrow">Hushållet</p>
     <h1>Månadsbudgetar</h1>
-    <p class="lede">Varje namn är en egen budget. Gör flera och jämför dem i listan. Exportera och importera dem som csv.</p>
+    <p class="lede">Varje namn är en egen budget. Jämför dem här, eller ta med dem som csv.</p>
   </div>
   <div class="head-actions">
     <a class="button secondary" href="{% url 'plan_export' %}">Exportera</a>
@@ -19,67 +19,79 @@
         <input type="file" name="fil" accept=".csv,text/csv" aria-label="Importera csv">
       </label>
     </form>
-    <a class="button secondary" href="{% url 'plan_create' %}">Ny månadsbudget</a>
+    <a class="button" href="{% url 'plan_create' %}">Ny månadsbudget</a>
   </div>
 </div>
 
 {% if latest %}
-  <section class="summary" aria-label="Senaste månadsbudgeten">
-    <p class="summary-kicker">{{ latest.0.title }} · Bolån {{ latest.1.mortgage.total|kr }}</p>
-    <div class="summary-grid">
+  <section class="hero" aria-label="Senaste månadsbudgeten">
+    <div class="hero-lead">
+      <p class="eyebrow">Senast sparad</p>
+      <h2 class="hero-title"><a href="{% url 'plan_edit' latest.0.pk %}">{{ latest.0.title }}</a></h2>
+      <p class="hero-figure {% if latest.1.left < 0 %}neg{% else %}pos{% endif %}">{{ latest.1.left|kr }}</p>
+      <p class="muted">Kvar efter kostnader · Bolån {{ latest.1.mortgage.total|kr }}</p>
+    </div>
+    <div class="hero-metrics">
       <article>
-        <h2>Netto</h2>
+        <h3>Netto</h3>
         <p class="numeral">{{ latest.1.income_total|kr }}</p>
       </article>
       <article>
-        <h2>Kostnader</h2>
+        <h3>Kostnader</h3>
         <p class="numeral">{{ latest.1.expense_total|kr }}</p>
       </article>
       <article>
-        <h2>Kvar</h2>
-        <p class="numeral {% if latest.1.left < 0 %}neg{% else %}pos{% endif %}">{{ latest.1.left|kr }}</p>
-      </article>
-      <article>
-        <h2>Sparkvot</h2>
+        <h3>Sparkvot</h3>
         <p class="numeral">{{ latest.1.savings_rate|pct }}</p>
       </article>
     </div>
   </section>
 
-  <div class="table-scroll">
-    <table class="sheet archive">
-      <thead>
-        <tr>
-          <th>Namn</th>
-          <th class="num">Bolån</th>
-          <th class="num">Netto</th>
-          <th class="num">Kostnader</th>
-          <th class="num">Kvar</th>
-          <th class="num">Sparkvot</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for plan, summary in rows %}
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Alla budgetar</h2>
+      <p class="muted">{% if rows|length == 1 %}1 budget{% else %}{{ rows|length }} budgetar{% endif %}</p>
+    </div>
+    <div class="table-scroll">
+      <table class="sheet archive">
+        <thead>
           <tr>
-            <td><a href="{% url 'plan_edit' plan.pk %}">{{ plan.title }}</a></td>
-            <td class="num">{{ summary.mortgage.total|kr }}</td>
-            <td class="num">{{ summary.income_total|kr }}</td>
-            <td class="num">{{ summary.expense_total|kr }}</td>
-            <td class="num {% if summary.left < 0 %}neg{% else %}pos{% endif %}">{{ summary.left|kr }}</td>
-            <td class="num">{{ summary.savings_rate|pct }}</td>
-            <td class="actions">
-              <a class="button danger" href="{% url 'plan_delete' plan.pk %}?fran=lista">Radera</a>
-            </td>
+            <th scope="col">Namn</th>
+            <th class="num" scope="col">Bolån</th>
+            <th class="num" scope="col">Netto</th>
+            <th class="num" scope="col">Kostnader</th>
+            <th class="num" scope="col">Kvar</th>
+            <th class="num" scope="col">Sparkvot</th>
+            <th scope="col"><span class="vh">Åtgärd</span></th>
           </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+        </thead>
+        <tbody>
+          {% for plan, summary in rows %}
+            <tr>
+              <td><a href="{% url 'plan_edit' plan.pk %}">{{ plan.title }}</a></td>
+              <td class="num">{{ summary.mortgage.total|kr }}</td>
+              <td class="num">{{ summary.income_total|kr }}</td>
+              <td class="num">{{ summary.expense_total|kr }}</td>
+              <td class="num {% if summary.left < 0 %}neg{% else %}pos{% endif %}">{{ summary.left|kr }}</td>
+              <td class="num">{{ summary.savings_rate|pct }}</td>
+              <td class="actions">
+                <a class="button danger" href="{% url 'plan_delete' plan.pk %}?fran=lista">Radera</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 {% else %}
   <section class="empty">
+    <svg class="empty-mark" viewBox="0 0 32 32" aria-hidden="true">
+      <rect width="32" height="32" rx="9" fill="#14201a"/>
+      <path d="M7.5 21.5c2.4-1.1 3.8-5 5.6-5 1.6 0 2.1 2.4 3.8 2.4 2.3 0 3.4-6.4 7.6-8.4" fill="none" stroke="#8dffb8" stroke-width="2.25" stroke-linecap="round"/>
+    </svg>
     <h2>Ingen månadsbudget ännu</h2>
     <p>Skapa en månadsbudget och fyll i inkomster och kostnader.</p>
+    <a class="button" href="{% url 'plan_create' %}">Ny månadsbudget</a>
   </section>
 {% endif %}
 {% endblock %}

@@ -16,7 +16,7 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-Open http://localhost:8000/ and create an account. Each budget has its own name, so two budgets can describe the same calendar month. A new budget starts empty, on Indata. Månad and Översikt are separate pages for the saved result. Yellow fields are what you type, income first. Amounts group thousands with a space as you type. Write a car under costs. Mortgage interest and amortization are calculated and added when you save. Copy names the new budget automatically, and the name can be changed afterwards. The list exports and imports budgets as a semicolon-separated UTF-8 csv. Mortgage interest and amortization are calculated again on import.
+Open http://localhost:8000/ and create an account. Each budget has its own name, so two budgets can describe the same calendar month. A new budget starts empty, on Indata. Månad and Översikt are separate pages for the saved result. The fields are what you type, income first. Amounts group thousands with a space as you type. Write a car under costs. Mortgage interest and amortization are calculated and added when you save. Copy names the new budget automatically, and the name can be changed afterwards. The list exports and imports budgets as a semicolon-separated UTF-8 csv. Mortgage interest and amortization are calculated again on import.
 
 Money is rounded to öre. A person is whatever you write on a row. The mortgage is not assigned to anyone.
 
