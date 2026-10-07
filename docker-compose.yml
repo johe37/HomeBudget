@@ -1,0 +1,25 @@
+# Copy .env.example to .env and set DJANGO_SECRET_KEY, then:
+#   docker compose up -d --build
+#
+# The database stays in the homebudget-data volume.
+# Behind TLS, also set these in .env:
+#   DJANGO_BEHIND_PROXY=1
+#   DJANGO_ACCOUNT_PROTOCOL=https
+#   DJANGO_SITE_DOMAIN=budget.example.com
+#   DJANGO_CSRF_TRUSTED_ORIGINS=https://budget.example.com
+
+services:
+  homebudget:
+    image: johe37/homebudget:latest
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      DJANGO_DEBUG: "0"
+    volumes:
+      - homebudget-data:/data
+    restart: unless-stopped
+
+volumes:
+  homebudget-data:

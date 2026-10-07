@@ -22,19 +22,17 @@ Money is rounded to öre. A person is whatever you write on a row. The mortgage 
 
 ## Docker
 
-The image listens on port 8000 and keeps the sqlite database in `/data`.
+Copy `.env.example` to `.env` and set `DJANGO_SECRET_KEY` to a long random value. The container refuses `change-me`.
 
 ```bash
-docker build -t johe37/homebudget .
-docker run --rm -p 8000:8000 \
-  -e DJANGO_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')" \
-  -v homebudget-data:/data \
-  johe37/homebudget
+docker compose up -d --build
 ```
 
-GitHub Actions builds `linux/amd64` and `linux/arm64` on every push and pull request. Pushing a git tag publishes `johe37/homebudget:<tag>` and `:latest` to Docker Hub. Add a `DOCKERHUB_TOKEN` repository secret (a Docker Hub access token for `johe37`).
+Open http://localhost:8000/. The sqlite database stays in the `homebudget-data` volume. `docker compose down` stops the app and keeps the database.
 
-Behind a reverse proxy, set `DJANGO_BEHIND_PROXY=1`, `DJANGO_ACCOUNT_PROTOCOL=https`, `DJANGO_SITE_DOMAIN` to the public host, and `DJANGO_CSRF_TRUSTED_ORIGINS` to the public origin, for example `https://budget.example.com`. OAuth keys are the same variables as in `.env.example`.
+GitHub Actions builds `linux/amd64` and `linux/arm64` on every push and pull request. Pushing a git tag publishes `johe37/homebudget:<tag>` and `:latest` to Docker Hub. Add a `DOCKERHUB_TOKEN` repository secret (a Docker Hub access token for `johe37`). The compose file uses that image name and builds it from this directory when it is missing.
+
+Behind a reverse proxy, set `DJANGO_BEHIND_PROXY=1`, `DJANGO_ACCOUNT_PROTOCOL=https`, `DJANGO_SITE_DOMAIN` to the public host, and `DJANGO_CSRF_TRUSTED_ORIGINS` to the public origin, for example `https://budget.example.com`, in `.env`. OAuth keys are the same variables as in `.env.example`.
 
 ## Social login
 
