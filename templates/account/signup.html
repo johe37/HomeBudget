@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load socialaccount %}
+
+{% block title %}Skapa konto · Hushållskalkyl{% endblock %}
+
+{% block content %}
+<section class="auth-card">
+  <p class="eyebrow">Nytt hushåll</p>
+  <h1>Skapa konto</h1>
+  <p class="lede">Kontot är ditt. Planerna du sparar syns bara när du är inloggad.</p>
+  <form method="post" action="{% url 'account_signup' %}">
+    {% csrf_token %}
+    {{ redirect_field }}
+    {{ form.non_field_errors }}
+    <label for="{{ form.username.id_for_label }}">Användarnamn</label>
+    {{ form.username }}
+    {{ form.username.errors }}
+    <label for="{{ form.password1.id_for_label }}">Lösenord</label>
+    {{ form.password1 }}
+    {{ form.password1.errors }}
+    {% if form.password1.help_text %}<div class="help">{{ form.password1.help_text }}</div>{% endif %}
+    <label for="{{ form.password2.id_for_label }}">Upprepa lösenord</label>
+    {{ form.password2 }}
+    {{ form.password2.errors }}
+    <button type="submit">Skapa konto</button>
+  </form>
+  <p class="switch">Har du redan ett konto? <a href="{% url 'account_login' %}">Logga in</a></p>
+  {% get_providers as socialaccount_providers %}
+  {% if socialaccount_providers %}
+    <div class="social">
+      <p>Eller skapa konto med</p>
+      {% for provider in socialaccount_providers %}
+        <a class="button secondary" href="{% provider_login_url provider.id process='login' %}">
+          {% if provider.id == "facebook" %}Meta{% else %}{{ provider.name }}{% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

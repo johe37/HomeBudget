@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Logga ut · Hushållskalkyl{% endblock %}
+
+{% block content %}
+<section class="auth-card">
+  <h1>Logga ut</h1>
+  <p>Vill du logga ut från hushållskalkylen?</p>
+  <form method="post" action="{% url 'account_logout' %}">
+    {% csrf_token %}
+    {{ redirect_field }}
+    <button type="submit">Logga ut</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Ny månad · Hushållskalkyl{% endblock %}
+
+{% block content %}
+<section class="auth-card wide">
+  <p class="eyebrow">Ny månad</p>
+  <h1>Vilken månad ska skrivas</h1>
+  <p class="lede">En tom månad börjar på noll. Du kan också kopiera en månad som redan finns.</p>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {% for field in form %}
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {{ field.errors }}
+    {% endfor %}
+    <button type="submit">Skapa månad</button>
+  </form>
+</section>
+{% endblock %}

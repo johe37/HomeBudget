@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Radera {{ plan.title }} · Hushållskalkyl{% endblock %}
+
+{% block content %}
+<section class="auth-card">
+  <p class="eyebrow">Arkiv</p>
+  <h1>Radera {{ plan.title }}?</h1>
+  <p>Månadens inkomster och kostnader tas bort. Det går inte att ångra.</p>
+  <form method="post">
+    {% csrf_token %}
+    <button class="danger" type="submit">Radera {{ plan.title }}</button>
+    <a class="button secondary" href="{% url 'plan_edit' plan.pk %}">Behåll</a>
+  </form>
+</section>
+{% endblock %}

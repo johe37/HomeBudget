@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load socialaccount %}
+
+{% block title %}Logga in · Hushållskalkyl{% endblock %}
+
+{% block content %}
+<section class="auth-card">
+  <p class="eyebrow">Hushållets månad</p>
+  <h1>Logga in</h1>
+  <p class="lede">Skriv inkomster och kostnader för en månad, spara, och gå vidare till nästa utan att skriva över arkivet.</p>
+  <form method="post" action="{% url 'account_login' %}">
+    {% csrf_token %}
+    {{ redirect_field }}
+    {{ form.non_field_errors }}
+    <label for="{{ form.login.id_for_label }}">Användarnamn</label>
+    {{ form.login }}
+    {{ form.login.errors }}
+    <label for="{{ form.password.id_for_label }}">Lösenord</label>
+    {{ form.password }}
+    {{ form.password.errors }}
+    {% if form.remember %}
+      <label class="checkline" for="{{ form.remember.id_for_label }}">
+        {{ form.remember }} Kom ihåg mig
+      </label>
+    {% endif %}
+    <button type="submit">Logga in</button>
+  </form>
+  <p class="switch">Inget konto ännu? <a href="{% url 'account_signup' %}">Skapa konto</a></p>
+  {% get_providers as socialaccount_providers %}
+  {% if socialaccount_providers %}
+    <div class="social">
+      <p>Eller fortsätt med</p>
+      {% for provider in socialaccount_providers %}
+        <a class="button secondary" href="{% provider_login_url provider.id process='login' %}">
+          {% if provider.id == "facebook" %}Meta{% else %}{{ provider.name }}{% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="muted">GitHub, Meta och X kan kopplas på när OAuth-nycklarna finns. Fram till dess räcker ett eget konto.</p>
+  {% endif %}
+</section>
+{% endblock %}

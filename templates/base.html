@@ -1,0 +1,41 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Hushållskalkyl{% endblock %}</title>
+  <link rel="icon" href="{% static 'budgets/favicon.svg' %}" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'budgets/app.css' %}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{% url 'dashboard' %}">Hushållskalkyl</a>
+    {% if user.is_authenticated %}
+      <nav class="topnav" aria-label="Huvudmeny">
+        <a href="{% url 'dashboard' %}">Arkiv</a>
+        <a href="{% url 'household' %}">Hushåll</a>
+        <span class="who">{{ user.username }}</span>
+        <form method="post" action="{% url 'account_logout' %}">
+          {% csrf_token %}
+          <button class="linkish" type="submit">Logga ut</button>
+        </form>
+      </nav>
+    {% endif %}
+  </header>
+  <main class="wrap">
+    {% if messages %}
+      <ul class="messages">
+        {% for message in messages %}
+          <li class="{{ message.tags }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  <script src="{% static 'budgets/app.js' %}"></script>
+</body>
+</html>

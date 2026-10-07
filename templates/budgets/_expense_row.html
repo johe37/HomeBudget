@@ -1,0 +1,13 @@
+<tr class="{% if form.instance.pk and not form.active.value %}is-off{% endif %}">
+  <td>
+    {{ form.id }}
+    {{ form.name }}
+    {{ form.name.errors }}
+  </td>
+  <td>{{ form.category }}{{ form.category.errors }}</td>
+  <td>{{ form.person }}{{ form.person.errors }}</td>
+  <td>{{ form.amount }}{{ form.amount.errors }}</td>
+  <td>{{ form.note }}{{ form.note.errors }}</td>
+  <td class="check">{{ form.active }}</td>
+  <td class="check">{% if form.DELETE %}{{ form.DELETE }}{% endif %}</td>
+</tr>
