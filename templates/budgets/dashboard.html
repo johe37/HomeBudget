@@ -22,7 +22,15 @@
         <input type="file" name="fil" accept=".csv,text/csv" aria-label="Importera csv">
       </label>
     </form>
-    <a class="button" href="{% url 'plan_create' %}">Ny månadsbudget</a>
+    <div class="head-create">
+      {% if latest %}
+        <form class="sample-form" method="post" action="{% url 'plan_sample' %}">
+          {% csrf_token %}
+          <button class="secondary" type="submit">Ny exempelbudget</button>
+        </form>
+      {% endif %}
+      <a class="button" href="{% url 'plan_create' %}">Ny månadsbudget</a>
+    </div>
   </div>
 </div>
 
@@ -93,8 +101,14 @@
       <path d="M7.5 21.5c2.4-1.1 3.8-5 5.6-5 1.6 0 2.1 2.4 3.8 2.4 2.3 0 3.4-6.4 7.6-8.4" fill="none" stroke="#8dffb8" stroke-width="2.25" stroke-linecap="round"/>
     </svg>
     <h2>Ingen månadsbudget ännu</h2>
-    <p>Skapa en månadsbudget och fyll i inkomster och kostnader.</p>
-    <a class="button" href="{% url 'plan_create' %}">Ny månadsbudget</a>
+    <p>Skapa en tom månadsbudget, eller en exempelbudget med slumpad lön och vanliga kostnader.</p>
+    <div class="empty-actions">
+      <a class="button" href="{% url 'plan_create' %}">Ny månadsbudget</a>
+      <form class="sample-form" method="post" action="{% url 'plan_sample' %}">
+        {% csrf_token %}
+        <button class="secondary" type="submit">Ny exempelbudget</button>
+      </form>
+    </div>
   </section>
 {% endif %}
 {% endblock %}

@@ -15,6 +15,7 @@ from .models import Plan
 from .services import (
     clone_plan,
     create_empty_plan,
+    create_sample_plan,
     save_tried_plan,
     suggested_copy_name,
     summarize_plan,
@@ -81,6 +82,14 @@ def plan_compare(request):
             "notice": notice,
         },
     )
+
+
+@login_required
+@require_POST
+def plan_sample(request):
+    plan = create_sample_plan(request.user)
+    messages.success(request, f"{plan.title} är skapad med slumpad lön och vanliga kostnader.")
+    return redirect("plan_edit", pk=plan.pk)
 
 
 @login_required

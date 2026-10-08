@@ -4,12 +4,14 @@ import json
 import re
 from collections import defaultdict
 from decimal import Decimal
+from random import Random
 
 from django.db import transaction
 
 from .calc import derived_lines, ore, rate_from_micro, scale_ore, summarize
 from .constants import MANUAL
-from .models import Expense, Plan
+from .models import Expense, Income, Plan
+from .sample import build_sample
 
 _TRAILING_COPY = re.compile(r"\s+kopia(?:\s+\d+)?$")
 
@@ -78,6 +80,60 @@ def summarize_plan(plan: Plan):
 def create_empty_plan(user, name: str) -> Plan:
     plan = Plan.objects.create(user=user, name=name)
     sync_derived(plan)
+    return plan
+
+
+def suggested_sample_name(user, label: str) -> str:
+    stem = f"Exempel, {label.strip()}"[:80].rstrip() or "Exempel"
+    if not name_taken(user, stem):
+        return stem
+    number = 2
+    while True:
+        extra = f" {number}"
+        room = 80 - len(extra)
+        head = stem[:room].rstrip() if room > 0 else ""
+        candidate = f"{head}{extra}"[:80]
+        if not name_taken(user, candidate):
+            return candidate
+        number += 1
+
+
+def create_sample_plan(user, rng: Random | None = None) -> Plan:
+    """A new named budget filled with a randomized ordinary month."""
+    draft = build_sample(rng)
+    with transaction.atomic():
+        plan = Plan.objects.create(
+            user=user,
+            name=suggested_sample_name(user, draft.label),
+            note=draft.note,
+            mortgage_balance=draft.mortgage_balance,
+            mortgage_rate=draft.mortgage_rate,
+            amortization_rate=draft.amortization_rate,
+        )
+        for index, income in enumerate(draft.incomes):
+            Income.objects.create(
+                plan=plan,
+                kind=income.kind,
+                person=income.person,
+                gross=income.gross,
+                tax_rate=income.tax_rate,
+                net=income.net,
+                active=True,
+                sort_order=index,
+            )
+        for index, expense in enumerate(draft.expenses):
+            Expense.objects.create(
+                plan=plan,
+                name=expense.name,
+                category=expense.category,
+                person=expense.person,
+                amount=expense.amount,
+                note=expense.note,
+                active=True,
+                source=MANUAL,
+                sort_order=100 + index,
+            )
+        sync_derived(plan)
     return plan
 
 

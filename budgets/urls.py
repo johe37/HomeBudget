@@ -8,6 +8,7 @@ urlpatterns = [
     path("exportera/", views.plan_export, name="plan_export"),
     path("importera/", views.plan_import, name="plan_import"),
     path("manad/ny/", views.plan_create, name="plan_create"),
+    path("manad/exempel/", views.plan_sample, name="plan_sample"),
     path("manad/<int:pk>/", views.plan_edit, name="plan_edit"),
     path("manad/<int:pk>/kopiera/", views.plan_copy, name="plan_copy"),
     path("manad/<int:pk>/om/", views.plan_scenario_save, name="plan_scenario_save"),

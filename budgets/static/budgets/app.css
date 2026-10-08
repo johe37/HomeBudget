@@ -295,7 +295,13 @@ button.logout:hover { background: var(--hover); color: var(--ink); }
 }
 .page-head > * { min-width: 0; max-width: 100%; }
 .head-actions { justify-content: flex-end; }
-.copy-form, .import-form { margin: 0; }
+.head-create {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+.copy-form, .import-form, .sample-form { margin: 0; }
 .import-form label.button { position: relative; cursor: pointer; }
 .import-form input[type="file"] {
   position: absolute;
@@ -1097,6 +1103,12 @@ section.gate .auth-card {
 .empty-mark { width: 2.6rem; height: 2.6rem; margin-bottom: 0.45rem; }
 .empty h2 { font-size: 1.7rem; margin: 0; }
 .empty p { margin: 0 0 0.85rem; color: var(--muted); max-width: 34rem; }
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
 
 :focus-visible {
   outline: 2px solid var(--focus);
@@ -1169,9 +1181,13 @@ select.edit:focus-visible,
     display: grid;
     grid-template-columns: 1fr 1fr;
   }
-  .head-actions > * { min-width: 0; max-width: 100%; }
+  .head-actions > *,
+  .head-create > * { min-width: 0; max-width: 100%; }
+  .head-create { display: contents; }
   .head-actions > .button:not(.secondary),
-  .head-actions > button:not(.secondary) { grid-column: 1 / -1; }
+  .head-actions > button:not(.secondary),
+  .head-actions .sample-form,
+  .head-create > a.button { grid-column: 1 / -1; }
   .head-actions .button,
   .head-actions button,
   .head-actions label.button { width: 100%; }

@@ -1,4 +1,5 @@
 import json
+import random
 import re
 import shutil
 import subprocess
@@ -14,10 +15,17 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .calc import compare_plans, scenario_baseline
-from .constants import MANUAL, MORTGAGE_INTEREST
+from .constants import CATEGORIES, INCOME_KINDS, MANUAL, MORTGAGE_AMORTIZATION, MORTGAGE_INTEREST
 from .forms import SwedishDecimalField
 from .models import Expense, Income, Plan
-from .services import clone_plan, summarize_plan, sync_derived
+from .sample import BARNBIDRAG, build_sample
+from .services import (
+    clone_plan,
+    create_sample_plan,
+    suggested_sample_name,
+    summarize_plan,
+    sync_derived,
+)
 
 
 def post_plan(plan, **overrides):
@@ -688,3 +696,121 @@ class CompareTests(TestCase):
         page = self.client.get(reverse("plan_compare"))
         self.assertContains(page, "Det behövs två budgetar")
         self.assertNotContains(page, "Visa skillnaden")
+
+
+class SampleBudgetTests(TestCase):
+    def test_a_seed_fills_salary_and_ordinary_costs(self):
+        first = build_sample(random.Random(1))
+        again = build_sample(random.Random(1))
+        second = build_sample(random.Random(2))
+        self.assertEqual(first, again)
+        self.assertNotEqual(
+            [(row.kind, row.person, row.net) for row in first.incomes],
+            [(row.kind, row.person, row.net) for row in second.incomes],
+        )
+        rented = False
+        owned = False
+        with_child = False
+        without_child = False
+        for seed in range(40):
+            draft = build_sample(random.Random(seed))
+            self.assertTrue(draft.note.startswith("Slumpad exempelbudget."))
+            self.assertIn("Lön", [row.kind for row in draft.incomes])
+            self.assertTrue({row.kind for row in draft.incomes} <= set(INCOME_KINDS))
+            self.assertTrue({row.category for row in draft.expenses} <= set(CATEGORIES))
+            names = {row.name for row in draft.expenses}
+            self.assertIn("Mat", names)
+            self.assertTrue(names & {"Hyra", "Avgift", "Driftskostnad"})
+            self.assertIn("Transport", {row.category for row in draft.expenses})
+            self.assertTrue(all(row.amount > 0 for row in draft.expenses))
+            self.assertTrue(all(row.net > 0 for row in draft.incomes))
+            people = [row.person for row in draft.incomes if row.kind == "Lön"]
+            self.assertEqual(len(people), len(set(people)))
+            for income in draft.incomes:
+                if income.kind == "Lön":
+                    expected = (income.gross * (Decimal(1) - income.tax_rate)).quantize(Decimal("0.01"))
+                    self.assertEqual(income.net, expected)
+                if income.kind == "Barnbidrag":
+                    self.assertEqual(income.net, BARNBIDRAG)
+                    with_child = True
+            if not any(row.kind == "Barnbidrag" for row in draft.incomes):
+                without_child = True
+            if draft.mortgage_balance == 0:
+                self.assertEqual(draft.mortgage_rate, Decimal("0.000000"))
+                self.assertEqual(draft.amortization_rate, Decimal("0.000000"))
+                rented = True
+            else:
+                self.assertGreater(draft.mortgage_rate, 0)
+                self.assertGreater(draft.amortization_rate, 0)
+                owned = True
+        self.assertTrue(rented and owned and with_child and without_child)
+
+    def test_a_second_example_gets_its_own_name(self):
+        user = User.objects.create_user("exempel", password="test-pass-123")
+        Plan.objects.create(user=user, name="Exempel, en vuxen i hyresrätt")
+        self.assertEqual(
+            suggested_sample_name(user, "en vuxen i hyresrätt"),
+            "Exempel, en vuxen i hyresrätt 2",
+        )
+        self.assertEqual(
+            suggested_sample_name(user, "två vuxna i bostadsrätt"),
+            "Exempel, två vuxna i bostadsrätt",
+        )
+        first = create_sample_plan(user, random.Random(4))
+        second = create_sample_plan(user, random.Random(5))
+        self.assertNotEqual(first.pk, second.pk)
+        self.assertNotEqual(first.name, second.name)
+        self.assertTrue(first.name.startswith("Exempel, "))
+        self.assertTrue(second.name.startswith("Exempel, "))
+        owned = None
+        for plan in (first, second):
+            self.assertGreaterEqual(plan.incomes.filter(kind="Lön").count(), 1)
+            self.assertTrue(plan.expenses.filter(source=MANUAL, name="Mat").exists())
+            self.assertGreater(summarize_plan(plan).income_total, 0)
+            self.assertGreater(summarize_plan(plan).expense_total, 0)
+            if plan.mortgage_balance > 0:
+                owned = plan
+        for seed in range(6, 16):
+            if owned is not None:
+                break
+            plan = create_sample_plan(user, random.Random(seed))
+            if plan.mortgage_balance > 0:
+                owned = plan
+        self.assertIsNotNone(owned)
+        self.assertTrue(owned.expenses.filter(source=MORTGAGE_INTEREST).exists())
+        self.assertTrue(owned.expenses.filter(source=MORTGAGE_AMORTIZATION).exists())
+
+    def test_example_button_creates_a_new_budget_each_time(self):
+        user = User.objects.create_user("mock", password="test-pass-123")
+        self.client.force_login(user)
+        empty = self.client.get(reverse("dashboard"))
+        self.assertContains(empty, "Ny exempelbudget")
+        self.assertContains(empty, reverse("plan_sample"))
+        create = self.client.get(reverse("plan_create"))
+        self.assertContains(create, "Ny exempelbudget")
+        self.assertContains(create, "Beloppen slumpas varje gång.")
+
+        denied = self.client.get(reverse("plan_sample"))
+        self.assertEqual(denied.status_code, 405)
+
+        first = self.client.post(reverse("plan_sample"), follow=True)
+        plan = Plan.objects.get(user=user)
+        self.assertRedirects(first, reverse("plan_edit", args=[plan.pk]))
+        self.assertContains(first, "slumpad lön och vanliga kostnader")
+        self.assertContains(first, "Slumpad exempelbudget.")
+        self.assertContains(first, "<td>Lön</td>")
+        self.assertContains(first, "<td>Mat</td>")
+        self.assertContains(first, "Ny exempelbudget")
+
+        second = self.client.post(reverse("plan_sample"), follow=True)
+        self.assertEqual(Plan.objects.filter(user=user).count(), 2)
+        other = Plan.objects.filter(user=user).exclude(pk=plan.pk).get()
+        self.assertRedirects(second, reverse("plan_edit", args=[other.pk]))
+        self.assertNotEqual(plan.name, other.name)
+        self.assertGreater(plan.incomes.filter(kind="Lön").count(), 0)
+        self.assertGreater(other.incomes.filter(kind="Lön").count(), 0)
+
+        self.client.logout()
+        anonymous = self.client.post(reverse("plan_sample"))
+        self.assertRedirects(anonymous, f"/accounts/login/?next={reverse('plan_sample')}")
+        self.assertEqual(Plan.objects.filter(user=user).count(), 2)
