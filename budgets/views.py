@@ -7,7 +7,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from .calc import scenario_baseline
+from .calc import compare_plans, scenario_baseline
 from .constants import MANUAL
 from .csvio import BudgetCsvError, export_plans, import_plans
 from .forms import ExpenseFormSet, IncomeFormSet, PlanCreateForm, PlanForm
@@ -32,6 +32,54 @@ def dashboard(request):
         request,
         "budgets/dashboard.html",
         {"rows": rows, "latest": rows[0] if rows else None},
+    )
+
+
+def _chosen_plan(raw, plans_by_id):
+    if raw in (None, ""):
+        return None
+    try:
+        pk = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return plans_by_id.get(pk)
+
+
+@login_required
+def plan_compare(request):
+    plans = list(
+        Plan.objects.filter(user=request.user).prefetch_related("incomes", "expenses")
+    )
+    plans_by_id = {plan.pk: plan for plan in plans}
+    if "fran" not in request.GET and "mot" not in request.GET and len(plans) >= 2:
+        return redirect(f"{request.path}?fran={plans[0].pk}&mot={plans[1].pk}")
+    left = _chosen_plan(request.GET.get("fran"), plans_by_id)
+    right = _chosen_plan(request.GET.get("mot"), plans_by_id)
+    notice = ""
+    diff = None
+    if left and right and left.pk == right.pk:
+        notice = "Välj två olika budgetar."
+    elif left and right:
+        diff = compare_plans(
+            left,
+            right,
+            list(left.incomes.all()),
+            list(left.expenses.all()),
+            list(right.incomes.all()),
+            list(right.expenses.all()),
+        )
+    elif request.GET.get("fran") or request.GET.get("mot"):
+        notice = "Välj två budgetar."
+    return render(
+        request,
+        "budgets/compare.html",
+        {
+            "plans": plans,
+            "left": left,
+            "right": right,
+            "diff": diff,
+            "notice": notice,
+        },
     )
 
 

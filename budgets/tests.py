@@ -2,6 +2,7 @@ import json
 import re
 import shutil
 import subprocess
+from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -10,12 +11,13 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
-from .calc import scenario_baseline
+from .calc import compare_plans, scenario_baseline
 from .constants import MANUAL, MORTGAGE_INTEREST
 from .forms import SwedishDecimalField
 from .models import Expense, Income, Plan
-from .services import summarize_plan, sync_derived
+from .services import clone_plan, summarize_plan, sync_derived
 
 
 def post_plan(plan, **overrides):
@@ -531,3 +533,158 @@ class CsvTransferTests(TestCase):
         )
         self.assertContains(rejected, "bolåneskulden kan inte vara negativ")
         self.assertFalse(Plan.objects.filter(user=user, name="Trasig").exists())
+
+
+class CompareTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("ada", password="test-pass-123")
+        self.left = sample_plan(self.user)
+        self.right = clone_plan(self.left, "Provbudget kopia")
+        self.right.mortgage_rate = Decimal("0.04")
+        self.right.save()
+        self.right.expenses.filter(name="Mat").update(amount=Decimal("3000"))
+        Expense.objects.create(
+            plan=self.right, name="Kaffe", category="Leva", person="",
+            amount=Decimal("50"), source=MANUAL, sort_order=110,
+        )
+        Expense.objects.create(
+            plan=self.right, name="Sover", category="Leva", person="",
+            amount=Decimal("999"), source=MANUAL, sort_order=111, active=False,
+        )
+        self.right.incomes.filter(person="Person 2").update(active=False)
+        sync_derived(self.right)
+        Plan.objects.filter(pk=self.left.pk).update(updated_at=timezone.now() - timedelta(days=1))
+
+    def test_rows_that_differ_and_nothing_derived(self):
+        diff = compare_plans(
+            self.left,
+            self.right,
+            list(self.left.incomes.all()),
+            list(self.left.expenses.all()),
+            list(self.right.incomes.all()),
+            list(self.right.expenses.all()),
+        )
+        self.assertEqual(diff.left_delta, Decimal("-9150.00"))
+        self.assertEqual(diff.income_delta, Decimal("-8000.00"))
+        self.assertEqual(diff.expense_delta, Decimal("1150.00"))
+        self.assertEqual([(row.label, row.left, row.right) for row in diff.incomes], [
+            ("Lön", Decimal("8000.00"), None),
+        ])
+        self.assertEqual(diff.incomes[0].side, "borta")
+        self.assertEqual(diff.incomes[0].shown_delta, Decimal("-8000.00"))
+        self.assertEqual(diff.income_same, 2)
+        self.assertEqual([(row.label, row.left, row.right) for row in diff.expenses], [
+            ("Mat", Decimal("2000.00"), Decimal("3000.00")),
+            ("Kaffe", None, Decimal("50.00")),
+        ])
+        self.assertEqual(diff.expenses[1].side, "ny")
+        self.assertEqual(diff.expenses[1].shown_delta, Decimal("50.00"))
+        self.assertEqual(diff.expense_same, 2)
+        self.assertFalse(any(row.label == "Bolån, ränta" for row in diff.expenses))
+        self.assertTrue(any(row.label == "Ränta" and row.changed for row in diff.mortgage))
+
+    def test_compare_page_shows_the_gap_and_hides_other_people(self):
+        self.client.force_login(self.user)
+        opened = self.client.get(reverse("plan_compare"))
+        self.assertRedirects(
+            opened,
+            f"{reverse('plan_compare')}?fran={self.right.pk}&mot={self.left.pk}",
+        )
+        page = self.client.get(reverse("plan_compare"), {"fran": self.left.pk, "mot": self.right.pk})
+        self.assertContains(page, "-9 150 kr")
+        self.assertContains(page, "Provbudget kopia har 9 150 kr mindre kvar än Provbudget.")
+        self.assertContains(page, "Provbudget kopia har 8 000 kr lägre netto och 1 150 kr högre kostnader.")
+        self.assertContains(page, "-8 000 kr")
+        self.assertContains(page, "+1 000 kr")
+        self.assertContains(page, "+1 procentenhet")
+        self.assertContains(page, "3 % → 4 %")
+        self.assertContains(page, "Borta")
+        self.assertContains(page, "Ny")
+        self.assertContains(page, "2 inkomster är lika och visas inte.")
+        self.assertContains(page, "2 kostnader är lika och visas inte.")
+        self.assertNotContains(page, "Mot minus från")
+        self.assertNotContains(page, "Bara i")
+        self.assertNotContains(page, "Bolån, ränta")
+        self.assertNotContains(page, "Sover")
+        listing = self.client.get(reverse("dashboard"))
+        self.assertContains(listing, reverse("plan_compare"))
+
+        stranger = User.objects.create_user("other", password="test-pass-123")
+        secret = Plan.objects.create(user=stranger, name="Hemlig")
+        hidden = self.client.get(reverse("plan_compare"), {"fran": secret.pk, "mot": self.left.pk})
+        self.assertContains(hidden, "Välj två budgetar.")
+        self.assertNotContains(hidden, "Hemlig")
+
+        same = self.client.get(reverse("plan_compare"), {"fran": self.left.pk, "mot": self.left.pk})
+        self.assertContains(same, "Välj två olika budgetar.")
+
+    def test_a_post_that_changes_person_is_one_move(self):
+        user = User.objects.create_user("tesla", password="test-pass-123")
+        left = Plan.objects.create(user=user, name="Oktober 2026", mortgage_balance=Decimal("100"))
+        right = Plan.objects.create(
+            user=user,
+            name="Oktober 2026 (Om jag hade en Tesla)",
+            mortgage_balance=Decimal("100"),
+        )
+        Income.objects.create(plan=left, kind="Lön", person="Jonathan", net=Decimal("10000"))
+        Income.objects.create(plan=right, kind="Lön", person="Jonathan", net=Decimal("10000"))
+        Expense.objects.create(
+            plan=left, name="Billån", category="Transport", person="Sophie",
+            amount=Decimal("1530"), source=MANUAL,
+        )
+        Expense.objects.create(
+            plan=left, name="Drivmedel", category="Transport", person="Jonathan",
+            amount=Decimal("3000"), source=MANUAL,
+        )
+        Expense.objects.create(
+            plan=left, name="Livsmedel", category="Leva", person="Gemensam",
+            amount=Decimal("6000"), source=MANUAL,
+        )
+        Expense.objects.create(
+            plan=right, name="Billån", category="Transport", person="Jonathan",
+            amount=Decimal("4700"), source=MANUAL,
+        )
+        Expense.objects.create(
+            plan=right, name="Drivmedel", category="Transport", person="Jonathan",
+            amount=Decimal("500"), source=MANUAL,
+        )
+        Expense.objects.create(
+            plan=right, name="Livsmedel", category="Leva", person="Gemensam",
+            amount=Decimal("6000"), source=MANUAL,
+        )
+        sync_derived(left)
+        sync_derived(right)
+        diff = compare_plans(
+            left, right,
+            list(left.incomes.all()), list(left.expenses.all()),
+            list(right.incomes.all()), list(right.expenses.all()),
+        )
+        self.assertEqual(
+            [(row.label, row.side, row.left, row.right, row.meta) for row in diff.expenses],
+            [
+                ("Billån", "flytt", Decimal("1530.00"), Decimal("4700.00"), "Transport · Sophie → Jonathan"),
+                ("Drivmedel", "", Decimal("3000.00"), Decimal("500.00"), "Transport · Jonathan"),
+            ],
+        )
+        self.assertEqual(diff.expense_same, 1)
+        self.assertEqual(diff.left_delta, Decimal("-670.00"))
+        self.client.force_login(user)
+        page = self.client.get(reverse("plan_compare"), {"fran": left.pk, "mot": right.pk})
+        self.assertContains(
+            page,
+            "Oktober 2026 (Om jag hade en Tesla) har 670 kr mindre kvar än Oktober 2026.",
+        )
+        self.assertContains(page, "Bytte person")
+        self.assertContains(page, "Sophie → Jonathan")
+        self.assertContains(page, "1 530 kr → 4 700 kr")
+        self.assertContains(page, "3 000 kr → 500 kr")
+        self.assertContains(page, "Oktober 2026 (Om jag hade en Tesla) har 670 kr högre kostnader.")
+        self.assertNotContains(page, "nettot är")
+        self.assertNotContains(page, "Bara i")
+
+    def test_one_budget_explains_that_two_are_needed(self):
+        self.right.delete()
+        self.client.force_login(self.user)
+        page = self.client.get(reverse("plan_compare"))
+        self.assertContains(page, "Det behövs två budgetar")
+        self.assertNotContains(page, "Visa skillnaden")

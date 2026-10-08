@@ -8,9 +8,12 @@
   <div>
     <p class="eyebrow">Hushållet</p>
     <h1>Månadsbudgetar</h1>
-    <p class="lede">Varje namn är en egen budget. Jämför dem här, eller ta med dem som csv.</p>
+    <p class="lede">Varje namn är en egen budget. Jämför två stycken, eller ta med dem som csv.</p>
   </div>
   <div class="head-actions">
+    {% if rows|length > 1 %}
+      <a class="button secondary" href="{% url 'plan_compare' %}">Jämför</a>
+    {% endif %}
     <a class="button secondary" href="{% url 'plan_export' %}">Exportera</a>
     <form class="import-form" method="post" action="{% url 'plan_import' %}" enctype="multipart/form-data">
       {% csrf_token %}

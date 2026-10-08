@@ -38,6 +38,7 @@
       {% if user.is_authenticated %}
         <nav class="topnav" aria-label="Sidor">
           <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == "dashboard" %}aria-current="page"{% endif %}>Månadsbudgetar</a>
+          <a href="{% url 'plan_compare' %}" {% if request.resolver_match.url_name == "plan_compare" %}aria-current="page"{% endif %}>Jämför</a>
         </nav>
         <div class="account">
           <span class="who">

@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% load budget_tags %}
+
+{% block title %}Skillnad · Hushållskalkyl{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Två budgetar</p>
+    <h1>Skillnad</h1>
+    <p class="lede">Välj två sparade budgetar. Ingenting ändras.</p>
+  </div>
+</div>
+
+{% if plans|length < 2 %}
+  <section class="empty">
+    <h2>Det behövs två budgetar</h2>
+    <p>Skapa en till, eller spara ett prov från Om. Sedan syns skillnaden här.</p>
+    <a class="button" href="{% url 'plan_create' %}">Ny månadsbudget</a>
+  </section>
+{% else %}
+  <form class="compare-pick" method="get" action="{% url 'plan_compare' %}">
+    <label>
+      Från
+      <select class="edit" name="fran">
+        {% for plan in plans %}
+          <option value="{{ plan.pk }}" {% if left and plan.pk == left.pk %}selected{% endif %}>{{ plan.title }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Mot
+      <select class="edit" name="mot">
+        {% for plan in plans %}
+          <option value="{{ plan.pk }}" {% if right and plan.pk == right.pk %}selected{% endif %}>{{ plan.title }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit">Visa skillnaden</button>
+  </form>
+
+  {% if notice %}
+    <p class="muted">{{ notice }}</p>
+  {% endif %}
+
+  {% if diff %}
+    <section class="compare-story" aria-label="Skillnad i kvar">
+      <p class="numeral {% if diff.left_delta > 0 %}pos{% elif diff.left_delta < 0 %}neg{% endif %}">{{ diff.left_delta|delta_kr }}</p>
+      {% if diff.left_delta %}
+        <p class="compare-verdict">{{ right.title }} har {{ diff.left_delta|abs_kr }} {{ diff.kvar_word }} kvar än {{ left.title }}.</p>
+      {% else %}
+        <p class="compare-verdict">{{ right.title }} har lika mycket kvar som {{ left.title }}.</p>
+      {% endif %}
+    </section>
+
+    <div class="compare-sides">
+      <article class="compare-side">
+        <p class="eyebrow">Från</p>
+        <h2 class="compare-name">{{ left.title }}</h2>
+        <p class="numeral">{{ diff.left_summary.left|kr }}</p>
+        <p class="muted">kvar per månad</p>
+        <dl class="compare-facts">
+          <div><dt>Netto</dt><dd>{{ diff.left_summary.income_total|kr }}</dd></div>
+          <div><dt>Kostnader</dt><dd>{{ diff.left_summary.expense_total|kr }}</dd></div>
+          <div><dt>Sparkvot</dt><dd>{{ diff.left_summary.savings_rate|pct }}</dd></div>
+        </dl>
+      </article>
+      <article class="compare-side">
+        <p class="eyebrow">Mot</p>
+        <h2 class="compare-name">{{ right.title }}</h2>
+        <p class="numeral">{{ diff.right_summary.left|kr }}</p>
+        <p class="muted">kvar per månad</p>
+        <dl class="compare-facts">
+          <div><dt>Netto</dt><dd>{{ diff.right_summary.income_total|kr }}</dd></div>
+          <div><dt>Kostnader</dt><dd>{{ diff.right_summary.expense_total|kr }}</dd></div>
+          <div><dt>Sparkvot</dt><dd>{{ diff.right_summary.savings_rate|pct }}</dd></div>
+        </dl>
+      </article>
+    </div>
+
+    {% if diff.income_delta or diff.expense_delta %}
+      <p class="compare-bridge">{{ right.title }} har{% if diff.income_delta %} {{ diff.income_delta|abs_kr }} {% if diff.income_delta > 0 %}högre{% else %}lägre{% endif %} netto{% endif %}{% if diff.income_delta and diff.expense_delta %} och{% endif %}{% if diff.expense_delta %} {{ diff.expense_delta|abs_kr }} {% if diff.expense_delta > 0 %}högre{% else %}lägre{% endif %} kostnader{% endif %}.</p>
+    {% endif %}
+
+    {% if diff.same %}
+      <p class="muted">Inget skiljer budgetarna åt.</p>
+    {% else %}
+      {% if not diff.mortgage_same %}
+        <section class="pane">
+          <h2 class="band">Bolån</h2>
+          <ul class="diff-list">
+            {% for row in diff.mortgage %}
+              {% if row.changed %}
+                <li>
+                  <div>
+                    <p class="row-label">{{ row.label }}</p>
+                    <p class="diff-move">{% if row.unit == "rate" %}{{ row.left|rate }} → {{ row.right|rate }}{% else %}{{ row.left|kr }} → {{ row.right|kr }}{% endif %}</p>
+                  </div>
+                  <p class="diff-delta">{% if row.unit == "rate" %}{{ row.delta|points }}{% else %}{{ row.delta|delta_kr }}{% endif %}</p>
+                </li>
+              {% endif %}
+            {% endfor %}
+          </ul>
+        </section>
+      {% endif %}
+
+      {% if diff.incomes %}
+        <section class="pane">
+          <h2 class="band">Inkomster</h2>
+          <ul class="diff-list">
+            {% for row in diff.incomes %}
+              <li>
+                <div>
+                  <p class="row-label">{{ row.label }}{% if row.side == "ny" %} <span class="diff-tag">Ny</span>{% elif row.side == "borta" %} <span class="diff-tag">Borta</span>{% elif row.side == "flytt" %} <span class="diff-tag">Bytte person</span>{% endif %}</p>
+                  {% if row.meta %}<p class="row-meta">{{ row.meta }}</p>{% endif %}
+                  <p class="diff-move">{{ row.left|kr }} → {{ row.right|kr }}</p>
+                </div>
+                <p class="diff-delta">{{ row.shown_delta|delta_kr }}</p>
+              </li>
+            {% endfor %}
+          </ul>
+          {% if diff.income_note %}<p class="muted">{{ diff.income_note }}</p>{% endif %}
+        </section>
+      {% endif %}
+
+      {% if diff.expenses %}
+        <section class="pane">
+          <h2 class="band">Kostnader</h2>
+          <ul class="diff-list">
+            {% for row in diff.expenses %}
+              <li>
+                <div>
+                  <p class="row-label">{{ row.label }}{% if row.side == "ny" %} <span class="diff-tag">Ny</span>{% elif row.side == "borta" %} <span class="diff-tag">Borta</span>{% elif row.side == "flytt" %} <span class="diff-tag">Bytte person</span>{% endif %}</p>
+                  {% if row.meta %}<p class="row-meta">{{ row.meta }}</p>{% endif %}
+                  <p class="diff-move">{{ row.left|kr }} → {{ row.right|kr }}</p>
+                </div>
+                <p class="diff-delta">{{ row.shown_delta|delta_kr }}</p>
+              </li>
+            {% endfor %}
+          </ul>
+          {% if diff.expense_note %}<p class="muted">{{ diff.expense_note }}</p>{% endif %}
+        </section>
+      {% endif %}
+
+      {% if diff.unchanged_note %}<p class="muted">{{ diff.unchanged_note }}</p>{% endif %}
+    {% endif %}
+  {% endif %}
+{% endif %}
+{% endblock %}
